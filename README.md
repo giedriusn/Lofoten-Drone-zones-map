@@ -116,22 +116,48 @@ distance, and source URLs live in `config.json`.
 
 ```
 index.html / app.js / style.css   the map (Leaflet, no framework, no build)
+tiles.mjs / offline.mjs            offline PWA: tile math + Kartverket basemap + region download
+sw.js / manifest.webmanifest       service worker + manifest (installable, fully offline)
+icons/                             PWA / home-screen icons
 vendor/                            Leaflet 1.9.4, vendored for offline use
 data/*.geojson                     generated restriction layers
 scripts/build-data.mjs             the data pipeline (fetch → clip → normalize)
-config.json                        region bbox, airport rules, source URLs
+scripts/tiles.test.mjs             unit tests for the tile math (node --test)
+config.json                        region bbox, airport rules, offline zoom range, source URLs
 ```
 
-## Phase 2 — offline on iPhone (not done yet)
+Run the tile-math tests with `node --test scripts/tiles.test.mjs` (no deps).
 
-The app is already offline-ready except for the **map tiles**. To use it in the
-field with no signal:
+## Offline use on iPhone (phase 2)
 
-1. Pre-cache tiles for the region into a local `tiles/` folder (or switch to an
-   `.mbtiles` / `pmtiles` vector source served locally), and point the tile URL at it.
-2. Add a service worker + web app manifest so it installs to the home screen and
-   loads fully offline.
-3. "Add to Home Screen" in Safari.
+The app installs as a **PWA** and works with **no signal** in the field. A service
+worker (`sw.js`) pre-caches the app shell and all restriction data; a web app
+manifest makes it installable to the iOS home screen. The only thing that needed
+the network is the basemap — so there's a **Norway** basemap (official
+[Kartverket](https://www.kartverket.no/) topographic tiles, CC BY 4.0, the one
+basemap whose licence permits offline caching) and a **Save map for offline**
+button that pre-downloads the region's tiles into a durable cache.
 
-All restriction data already loads from local files, so only the basemap needs
-this treatment.
+**Field setup (do this on Wi-Fi):**
+
+1. Host the static files over **HTTPS** (e.g. GitHub Pages — service workers need
+   HTTPS or `localhost`). Relative paths mean it works at a domain root or a
+   project subpath unchanged.
+2. Open it in Safari **while online**, then **Share → Add to Home Screen**.
+3. Open the installed app (still online — this first launch is when the service
+   worker installs and caches the app shell), tap **⬇ Save map for offline
+   (Norway)**, and wait for it to finish.
+4. Go fly. With no signal: open the app, switch to the **Norway** basemap, and the
+   map + every zone work straight from the cache.
+
+**Coverage / size:** the download covers the whole region at zoom 5–12 (~10,500
+tiles, ~150 MB) — the practical ceiling for iPhone storage. Tune `config.json` →
+`offline.maxZoom` for more detail (z13 ≈ 600 MB) or less. Zooming past the cached
+level upscales the deepest cached tiles rather than showing blank ones. The
+size/usage figures shown in-app are approximate, and iOS may evict cached data
+after long disuse — just re-tap **Save map for offline** if the basemap looks
+empty after weeks unused.
+
+The other basemaps (OpenStreetMap, OpenTopoMap, satellite) remain for online use;
+tiles you view online are cached opportunistically, but only **Norway** is
+bulk-downloadable for guaranteed offline coverage.
