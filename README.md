@@ -18,7 +18,8 @@ military danger areas, protected nature, and built-up areas.
 | **Airport 5 km no-fly** | 5 km ring around the 7 airports with scheduled air traffic service (Bodø, Evenes, Andøya, Leknes, Svolvær, Stokmarknes, Røst). Uncontrolled airstrips & heliports are advisory markers only. | [OurAirports](https://ourairports.com/) | Crowd-sourced, locations verified |
 | **Control & traffic zones (CTR/TIZ)** | Control zones (Bodø, Evenes, Andøya, Bardufoss, Tromsø) and AFIS traffic info zones (Leknes, Helle/Svolvær, Skagen/Stokmarknes, Røst). All ground level. | [luftrom.info](https://luftrom.info) (from Avinor AIP) | AIP-derived; **cross-checked vs official AIP** |
 | **Restricted areas** | AIP ENR 5.1 restricted airspace (R423/425/426). | luftrom.info | AIP-derived & verified |
-| **Danger areas (military)** | Military danger / exercise areas, `END…` (AIP ENR 5.1 & 5.2, incl. Andøya range). | luftrom.info | AIP-derived & verified |
+| **Danger areas (firing/military)** | AIP ENR 5.1 danger areas (firing ranges, Andøya rocket range). Blocking, but active only at set times — check NOTAM. | luftrom.info | AIP-derived & verified |
+| **Military exercise areas (NOTAM)** | AIP ENR 5.2 exercise/training areas — the large blocks over the sea. **Active only when activated by NOTAM**, so treated as conditional (non-blocking) context, not a permanent no-fly. | luftrom.info | AIP-derived & verified |
 | **Hospital / HEMS helipads** | Air-ambulance helipads (Bodø, Narvik, Stokmarknes, Harstad, Værøy). | [OpenStreetMap](https://www.openstreetmap.org/) | Crowd-sourced |
 | **Air sports areas** | Paraglider/parachute/GA activity areas (AIP ENR 5.5). Off by default — advisory hazard. | luftrom.info | AIP-derived |
 | **Nature reserves & parks** | National parks, nature reserves, landscape & marine protected areas; seabird reserves flagged for the seasonal nesting ban. | [Miljødirektoratet](https://kart.miljodirektoratet.no/) | **Official government data** |

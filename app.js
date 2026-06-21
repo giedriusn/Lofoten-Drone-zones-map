@@ -7,6 +7,7 @@ const COLORS = {
   ctr: "#ff9500",
   restricted: "#c026d3",
   danger: "#ff2d55",
+  exercise: "#9a6fb0",
   airsport: "#ffd60a",
   helipad: "#00c2d1",
   controlled: "#8aa0b6",
@@ -22,7 +23,8 @@ const LAYER_DEFS = [
   { id: "airport", name: "Airport 5 km no-fly", color: COLORS.airport, on: true, file: "airports", blocking: true },
   { id: "ctr", name: "Control & traffic zones (CTR/TIZ)", color: COLORS.ctr, on: true, file: "airspace", match: p => p.category === "ctr" || p.category === "tiz", blocking: true },
   { id: "restricted", name: "Restricted areas", color: COLORS.restricted, on: true, file: "airspace", match: p => p.category === "restricted", blocking: true },
-  { id: "danger", name: "Danger areas (military)", color: COLORS.danger, on: true, file: "airspace", match: p => p.category === "danger", dashed: true, blocking: true },
+  { id: "danger", name: "Danger areas (firing/military)", color: COLORS.danger, on: true, file: "airspace", match: p => p.category === "danger", dashed: true, blocking: true },
+  { id: "exercise", name: "Military exercise areas (NOTAM)", color: COLORS.exercise, on: true, file: "airspace", match: p => p.category === "exercise", dashed: true, blocking: false },
   { id: "nature", name: "Nature reserves & parks", color: COLORS.reserve, on: true, file: "nature", blocking: true },
   { id: "helipad", name: "Hospital / HEMS helipads", color: COLORS.helipad, on: true, file: "helipads", blocking: false },
   { id: "airsport", name: "Air sports areas", color: COLORS.airsport, on: false, file: "airspace", match: p => p.category === "airsport", blocking: false },
@@ -189,7 +191,7 @@ function styleFor(def, p) {
   return {
     color, fillColor,
     weight: 1.5,
-    fillOpacity: def.id === "populated" ? 0.18 : 0.16,
+    fillOpacity: def.id === "exercise" ? 0.06 : def.id === "populated" ? 0.18 : 0.16,
     dashArray: def.dashed ? "6 4" : null,
   };
 }

@@ -143,7 +143,7 @@ const CLASS_META = {
   R: { category: "restricted", label: "Restricted Area",
        rule: "Restricted airspace (AIP ENR 5.1). Flight restricted or prohibited — verify the regulation before flying." },
   Q: { category: "danger", label: "Danger Area",
-       rule: "Danger area — military / hazardous activity (AIP ENR 5.1/5.2). Avoid; activity may be hazardous to flight." },
+       rule: "Danger area — military / hazardous activity, e.g. firing or rocket launches (AIP ENR 5.1). Active only at certain times; check NOTAM/AIP for activation before flying." },
   Luftsport: { category: "airsport", label: "Air sports area",
        rule: "Air-sports area (AIP ENR 5.5) — paragliders, hang-gliders, parachutists or GA may share this airspace. A hazard, not a legal ban: check for activity and keep clear." },
   C: { category: "controlled", label: "Controlled airspace (TMA/CTA)",
@@ -172,20 +172,30 @@ async function buildAirspace() {
     // non-blocking context so a zone can never silently vanish from the map.
     const lowEnough = !isFinite(floor) || floor <= floorMax;
     const droneRelevant = droneClasses.has(cls) && lowEnough;
+    const src = f.properties.source_href || "";
+    // Class Q from AIP ENR 5.2 = large MILITARY EXERCISE/TRAINING areas, which are
+    // active only when activated by NOTAM (not a permanent no-fly). Split them out
+    // from the always-relevant ENR 5.1 danger areas (firing ranges etc.).
+    const isExercise = cls === "Q" && /ENR-5\.2/.test(src);
+    const category = !droneRelevant ? "controlled" : isExercise ? "exercise" : meta.category;
+    const label = !droneRelevant ? (cls === "C" ? CLASS_META.C.label : `${meta.label} (high altitude)`)
+      : isExercise ? "Military exercise area" : meta.label;
+    const rule = !droneRelevant ? CLASS_META.C.rule
+      : isExercise ? "Large military exercise/training area (AIP ENR 5.2). Active ONLY during exercises and announced by NOTAM — not a permanent no-fly, but keep out when it is active. Always check NOTAM before flying."
+      : meta.rule;
     features.push({
       type: "Feature",
       geometry: f.geometry,
       properties: {
         layer: "airspace",
-        category: droneRelevant ? meta.category : "controlled",
+        category,
         airclass: cls,
-        label: droneRelevant ? meta.label
-          : cls === "C" ? CLASS_META.C.label : `${meta.label} (high altitude)`,
+        label,
         name,
         floor_m: floor,
         ceil_m: Number(f.properties["to (m amsl)"]),
-        rule: droneRelevant ? meta.rule : CLASS_META.C.rule,
-        source: f.properties.source_href || "",
+        rule,
+        source: src,
       },
     });
   }
