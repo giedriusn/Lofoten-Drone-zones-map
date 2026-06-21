@@ -190,10 +190,13 @@ function styleFor(def, p) {
   if (def.id === "nature" && (p.category || "").includes("nasjonalpark")) {
     color = COLORS.park; fillColor = COLORS.park;
   }
+  // TIZ are large Class-G advisory zones (coordinate with AFIS, not a hard
+  // clearance like a CTR) — render them lighter and thinner so a ~30 km zone
+  // doesn't read as strongly as a 5 km hard ring.
   return {
     color, fillColor,
-    weight: 1.5,
-    fillOpacity: def.id === "exercise" ? 0.06 : def.id === "populated" ? 0.18 : 0.16,
+    weight: def.id === "tiz" ? 1 : 1.5,
+    fillOpacity: def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.08 : def.id === "populated" ? 0.18 : 0.16,
     dashArray: def.dashed ? "6 4" : null,
   };
 }
