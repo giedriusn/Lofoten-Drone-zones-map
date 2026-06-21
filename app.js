@@ -347,9 +347,17 @@ function renderResult(latlng, hits, nearest) {
   const blocking = hits.filter(h => h.def.blocking);
   const context = hits.filter(h => !h.def.blocking);
 
-  const verdict = blocking.length
-    ? `<div class="verdict blocked"><span class="verdict__dot"></span>${blocking.length} restriction${blocking.length > 1 ? "s" : ""} here</div>`
-    : `<div class="verdict clear"><span class="verdict__dot"></span>No drone restriction at ≤120 m</div>`;
+  // The headline reflects the WORST severity present, not a flat "blocked vs clear":
+  // a hard no-fly (restricted / danger / nature) reads red, while a permission-only
+  // hit (airport / CTR / TIZ — you may fly once cleared) reads orange. This matches
+  // the zone colours and glossary badges instead of alarming red for every zone.
+  const noFly = blocking.filter(h => h.def.severity === "nofly");
+  const count = blocking.length, plural = count > 1 ? "s" : "";
+  const verdict = !count
+    ? `<div class="verdict clear"><span class="verdict__dot"></span>No drone restriction at ≤120 m</div>`
+    : noFly.length
+    ? `<div class="verdict blocked"><span class="verdict__dot"></span>${count} restriction${plural} here</div>`
+    : `<div class="verdict permission"><span class="verdict__dot"></span>Permission needed — ${count} zone${plural} here</div>`;
 
   const renderHit = h => {
     const color = colorFor(h.def, h.p);

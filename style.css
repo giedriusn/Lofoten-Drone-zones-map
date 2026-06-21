@@ -256,6 +256,7 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
 
 .verdict { display: flex; align-items: center; gap: 9px; padding: 12px 2px; font-weight: 700; font-size: 15px; }
 .verdict.clear { color: var(--c-ok); }
+.verdict.permission { color: var(--c-airport); }
 .verdict.blocked { color: var(--c-danger); }
 .verdict__dot { width: 12px; height: 12px; border-radius: 50%; background: currentColor; box-shadow: 0 0 12px currentColor; }
 
