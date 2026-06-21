@@ -195,6 +195,22 @@ ul.gloss .chip {
 }
 ul.gloss .chip--ring { border-radius: 50%; }
 ul.gloss b { display: block; color: var(--text); margin-bottom: 2px; }
+ul.gloss .gloss-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
+ul.gloss .gloss-title b { display: inline; margin: 0; }
+.badge {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 20px; white-space: nowrap;
+}
+.badge--nofly { background: rgba(255,45,85,.18); color: #ff8aa0; border: 1px solid rgba(255,45,85,.45); }
+.badge--perm { background: rgba(255,149,0,.16); color: #ffc06a; border: 1px solid rgba(255,149,0,.45); }
+.badge--caution { background: rgba(255,214,10,.14); color: #ffe08a; border: 1px solid rgba(255,214,10,.45); }
+.badge--ok { background: rgba(52,199,89,.14); color: #8fe6a3; border: 1px solid rgba(52,199,89,.45); }
+
+/* Tag key + "to fly" action lines in the glossary */
+.taglegend { display: flex; flex-direction: column; gap: 7px; margin: 2px 0 16px; font-size: 12px; color: var(--muted); }
+.taglegend > span { display: flex; align-items: center; gap: 9px; }
+ul.gloss .todo { display: block; margin-top: 5px; font-size: 12px; color: #cdddee; }
+ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
 
 /* ---------- Disclaimer ---------- */
 .disclaimer {
