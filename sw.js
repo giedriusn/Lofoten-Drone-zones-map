@@ -1,10 +1,10 @@
 /* Service worker — offline app shell + map tiles. Classic worker for iOS support. */
-const SHELL_CACHE = "drone-shell-v2";
+const SHELL_CACHE = "drone-shell-v3";
 const TILE_CACHE = "drone-tiles-v1"; // NOT version-bumped: tiles are large & stable.
 
 const SHELL_ASSETS = [
   "./", "./index.html", "./app.js", "./style.css", "./config.json",
-  "./manifest.webmanifest", "./offline.mjs", "./tiles.mjs",
+  "./manifest.webmanifest", "./offline.mjs", "./tiles.mjs", "./geometry.mjs",
   "./vendor/leaflet.js", "./vendor/leaflet.css",
   "./vendor/images/layers.png", "./vendor/images/layers-2x.png",
   "./vendor/images/marker-icon.png", "./vendor/images/marker-icon-2x.png",
@@ -45,6 +45,11 @@ function isTile(url) {
   return TILE_HOSTS.some(h => url.hostname === h || url.hostname.endsWith("." + h));
 }
 
+// The Kartverket basemap is the only one runtime-cached (see fetch handler).
+function isOfflineTile(url) {
+  return url.hostname === "cache.kartverket.no";
+}
+
 // Drop a leading a./b./c. subdomain so a tile cached under one is found under another.
 function tileCacheKey(url) {
   const u = new URL(url); // clone — don't mutate the caller's URL
@@ -62,6 +67,12 @@ self.addEventListener("fetch", e => {
   // the status and only cache a real tile — a transient 4xx/5xx must not poison the
   // cache and then be served forever. The CORS response renders fine in Leaflet's
   // <img> tiles. Cache under the {s}-normalized key so a/b/c subdomains share entries.
+  //
+  // Only the Kartverket (offline) basemap is runtime-cached: it's what "Save offline"
+  // downloads and is capped at the region's z<=12, so the cache stays bounded. The
+  // other basemaps are online-only — runtime-caching them too would let incidental
+  // high-zoom browsing grow TILE_CACHE without limit (persisted storage never
+  // auto-evicts). They still read cache-first in case an older build cached them.
   if (isTile(url)) {
     e.respondWith((async () => {
       const cache = await caches.open(TILE_CACHE);
@@ -70,7 +81,7 @@ self.addEventListener("fetch", e => {
       if (hit) return hit;
       try {
         const resp = await fetch(req.url, { mode: "cors" });
-        if (resp.ok) cache.put(key, resp.clone()).catch(() => {});
+        if (resp.ok && isOfflineTile(url)) cache.put(key, resp.clone()).catch(() => {});
         return resp;
       } catch {
         // CORS unavailable (a host dropped its ACAO header) or offline. Fall back to

@@ -92,9 +92,13 @@ export function setupOfflineUI({ config, switchBasemap }) {
   const deferIdle = ms => { if (idleTimer) clearTimeout(idleTimer); idleTimer = setTimeout(showIdle, ms); };
 
   async function showIdle() {
+    const usage = await usageText();
+    // A download may have started while we awaited storage stats — don't let the idle
+    // render clobber its live "Saving…" status or reset the Cancel button.
+    if (controller) return;
     btn.textContent = idleLabel;
     btn.classList.remove("rulesbtn--danger");
-    status.innerHTML = `~${total.toLocaleString()} tiles · ~${fmtMB(est)} MB (approx)${await usageText()}`
+    status.innerHTML = `~${total.toLocaleString()} tiles · ~${fmtMB(est)} MB (approx)${usage}`
       + ` · <button id="clrOffline" class="linkbtn">Clear</button>`;
     const clr = status.querySelector("#clrOffline");
     if (clr) clr.onclick = async () => {
