@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Drone Zones — Lofoten · Bodø · Narvik</title>
+  <link rel="stylesheet" href="vendor/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Control panel -->
+  <aside id="panel" class="panel">
+    <header class="panel__head">
+      <div class="panel__title">
+        <span class="panel__mark">⬡</span>
+        <div>
+          <h1>Drone Zones</h1>
+          <p>Lofoten · Vesterålen · Bodø · Narvik</p>
+        </div>
+      </div>
+      <button id="panelToggle" class="iconbtn" title="Collapse panel" aria-label="Collapse panel">–</button>
+    </header>
+
+    <div class="panel__body">
+      <button id="checkBtn" class="checkbtn">
+        <span class="checkbtn__icon">📍</span>
+        <span>Can I fly here? <em>Click the map</em></span>
+      </button>
+
+      <section class="layers" id="layers"><!-- layer toggles injected by app.js --></section>
+
+      <section class="basemaps">
+        <span class="basemaps__label">Base map</span>
+        <div class="seg" id="basemaps"></div>
+      </section>
+
+      <button id="rulesBtn" class="rulesbtn">📋 Drone rules — under 250 g</button>
+
+      <p class="disclaimer">
+        ⚠️ <strong>Not for legal navigation.</strong> Permanent zones only — no NOTAMs.
+        Data may be incomplete or out of date; always confirm on
+        <a href="https://flydrone.no" target="_blank" rel="noopener">flydrone.no</a> /
+        the SafeToFly app and check NOTAMs before you fly.
+      </p>
+      <p class="disclaimer disclaimer--wild">
+        🐦 <strong>Wildlife:</strong> <em>naturmangfoldloven §15</em> bans disturbing animals
+        anywhere — even outside marked zones. Many seabird reserves are closed
+        (ferdselsforbud) ~15 Apr–31 Jul during nesting.
+      </p>
+    </div>
+  </aside>
+
+  <!-- Spot-check result -->
+  <div id="result" class="result result--hidden">
+    <div class="result__head">
+      <strong>At this point</strong>
+      <button id="resultClose" class="iconbtn" aria-label="Close">✕</button>
+    </div>
+    <div id="resultBody" class="result__body" role="status" aria-live="polite"></div>
+  </div>
+
+  <!-- Sub-250 g rules reference -->
+  <div id="rulesModal" class="modal modal--hidden" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+    <div class="modal__card">
+      <header class="modal__head">
+        <div>
+          <h2 id="rulesTitle">Drone rules — under 250 g</h2>
+          <p>Norway, open category A1. These operational rules apply <em>on top of</em> the zones on the map.</p>
+        </div>
+        <button id="rulesClose" class="iconbtn" aria-label="Close">✕</button>
+      </header>
+
+      <div class="modal__body">
+        <p class="modal__note">Verified against primary law — EU 2019/947 &amp; 2019/945, the Norwegian
+          <em>forskrift om ubemannede luftfartøyer</em> (BSL A 7-2, FOR-2024-11-01-2777),
+          <em>naturmangfoldloven</em>, and Datatilsynet guidance. A reference, <strong>not legal advice</strong> — confirm before flying.</p>
+
+        <h3>① Aircraft, registration &amp; age</h3>
+        <ul class="rules">
+          <li><strong>Register as operator</strong> at flydrone.no if your drone has a camera/sensor — required <strong>even under 250 g</strong>. Only camera-free or certified-toy drones are exempt. Put your operator number on the drone. <cite>EU 2019/947 Art 14(5),(8)</cite></li>
+          <li><strong>No exam or course needed</strong> for a sub-250 g (C0 / self-built) drone — just know the manual. <cite>EU 2019/947 UAS.OPEN.020(4)</cite></li>
+          <li><strong>Min. pilot age 16</strong> — no minimum for a self-built &lt;250 g drone, a toy-class C0, or when flying under supervision of someone 16+. <cite>EU 2019/947 Art 9</cite></li>
+          <li><strong>Insurance not legally required</strong> under 250 g (open category); ≥250 g needs ≥750 000 SDR third-party cover. Still recommended. <cite>BSL A 7-2 §6 · luftfartsloven §11-2 · FOR-2004-07-06-1101 §4</cite></li>
+        </ul>
+
+        <h3>② In the air</h3>
+        <ul class="rules">
+          <li><strong>Max 120 m</strong> above the closest point of the ground (the ceiling follows the terrain over hills/valleys). <cite>EU 2019/947 UAS.OPEN.010(2) · Art 4(1)(e)</cite></li>
+          <li><strong>Keep it in sight (VLOS)</strong> at all times — FPV goggles require a spotter. <cite>EU 2019/947 Art 4(1)(d) · UAS.OPEN.060(2)(b)</cite></li>
+          <li><strong>People:</strong> A1 lets you overfly individual uninvolved people, but <strong>never assemblies / crowds</strong>. <cite>EU 2019/947 UAS.OPEN.020(2)</cite></li>
+          <li>C0 design limits: &lt;250 g, ≤19 m/s. <cite>EU 2019/945 Annex Part 1</cite></li>
+        </ul>
+
+        <h3>③ Where you can't fly <span class="muted">(shown on the map)</span></h3>
+        <ul class="rules">
+          <li><strong>No closer than 5 km to an airport</strong> without permission from the air traffic service. <cite>BSL A 7-2 §7</cite></li>
+          <li><strong>Not over/near military areas &amp; vessels, embassies or prisons</strong> without the local commander's permission. <cite>BSL A 7-2 §7</cite></li>
+          <li>Respect control &amp; traffic zones (CTR/TIZ), restricted &amp; danger areas — all the airspace layers.</li>
+          <li>Filming designated military/prohibited areas needs <strong>NSM permission</strong>. <cite>FOR-2018-06-22-951 §6 · lov 2017-06-21-88</cite></li>
+        </ul>
+
+        <h3>④ Wildlife &amp; nature <span class="muted">(applies regardless of weight)</span></h3>
+        <ul class="rules">
+          <li><strong>Don't disturb wildlife — anywhere.</strong> "Ved enhver aktivitet skal unødig skade og lidelse på viltlevende dyr og deres reir, bo eller hi unngås." <cite>naturmangfoldloven §15 (+ §6)</cite></li>
+          <li><strong>Banned in national parks</strong> and most large landscape areas, and <strong>in many nature reserves</strong> — where a verneforskrift bans "modellfly", that includes drones (take-off, landing <em>and</em> flying in). <cite>Miljødirektoratet · nml §77</cite></li>
+          <li><strong>Seabird reserves:</strong> seasonal access ban (ferdselsforbud), commonly <strong>15 Apr–31 Jul</strong> during nesting — exact dates per area. <cite>e.g. Bliksvær FOR-2002-12-06-1426 §3</cite></li>
+        </ul>
+
+        <h3>⑤ Privacy (camera)</h3>
+        <ul class="rules">
+          <li>GDPR / <em>personopplysningsloven</em> applies when you capture identifiable people or property. Purely private use is exempt, but you generally need <strong>consent to publish</strong> footage of identifiable people, and must <strong>never film people in their home/garden</strong> without permission. Be visible; inform people nearby. <cite>Datatilsynet · GDPR Art 2(2)(c)</cite></li>
+        </ul>
+
+        <p class="modal__foot">Always confirm on <a href="https://flydrone.no" target="_blank" rel="noopener">flydrone.no</a> / the SafeToFly app and check NOTAMs before flying.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading" class="loading">Loading restriction data…</div>
+
+  <script src="vendor/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

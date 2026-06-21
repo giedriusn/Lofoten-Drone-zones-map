@@ -1,0 +1,5 @@
+.playwright-mcp/
+*.log
+.DS_Store
+/drone-map-check.png
+/drone-map-desktop.png

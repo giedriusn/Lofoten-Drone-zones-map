@@ -1,0 +1,30 @@
+{
+  "region": {
+    "name": "Lofoten, Vesterålen, Bodø & Narvik",
+    "bbox": [11.0, 66.7, 18.5, 69.6],
+    "center": [68.2, 14.8],
+    "zoom": 7
+  },
+  "airports": {
+    "buffer_km": 5,
+    "_comment": "5 km ring only for airports with scheduled air traffic service, where the official Luftfartstilsynet '5 km + ATC permission' rule applies. Uncontrolled airstrips and heliports are shown as advisory markers.",
+    "ring_types": ["large_airport", "medium_airport", "small_airport"],
+    "marker_types": ["large_airport", "medium_airport", "small_airport", "heliport", "seaplane_base"]
+  },
+  "airspace": {
+    "drone_floor_max_m": 305,
+    "drone_relevant_classes": ["D", "R", "Q", "G", "Luftsport"],
+    "context_classes": ["C"]
+  },
+  "sources": {
+    "airports_csv": "https://davidmegginson.github.io/ourairports-data/airports.csv",
+    "airspace_geojson": "https://raw.githubusercontent.com/relet/pg-xc/master/geojson/luftrom.geojson",
+    "nature_arcgis": "https://kart.miljodirektoratet.no/arcgis/rest/services/vern/MapServer/0/query",
+    "_overpass_note": "first array entry tried first; others are fallback mirrors",
+    "overpass": [
+      "https://overpass-api.de/api/interpreter",
+      "https://overpass.kumi.systems/api/interpreter",
+      "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+    ]
+  }
+}
