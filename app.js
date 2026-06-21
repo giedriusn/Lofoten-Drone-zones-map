@@ -2,6 +2,8 @@
    Loads local GeoJSON layers, renders them on a Leaflet map, and answers
    "can I fly at this point?" via point-in-polygon / distance checks. */
 
+import { registerServiceWorker, kartverketBasemap, setupOfflineUI } from "./offline.mjs";
+
 const COLORS = {
   // Severity palette: RED = strict no-fly · ORANGE = need permission · others = caution/context
   airport: "#ff9f0a",     // need permission → orange
@@ -57,6 +59,7 @@ init().catch(err => {
 });
 
 async function init() {
+  registerServiceWorker();
   config = await (await fetch("config.json")).json();
   const { center, zoom, bbox } = config.region;
 
@@ -66,7 +69,7 @@ async function init() {
     maxBoundsViscosity: 0.6,
   });
 
-  setupBasemaps();
+  const basemaps = setupBasemaps();
   L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
 
   // Load all data files in parallel.
@@ -80,6 +83,7 @@ async function init() {
   for (const def of LAYER_DEFS) buildLayer(def, data[def.file]);
   buildLayerUI();
   wireControls();
+  setupOfflineUI({ config, switchBasemap: basemaps.switchTo });
 
   document.getElementById("loading").classList.add("done");
 }
@@ -87,10 +91,12 @@ async function init() {
 /* ---------------- Basemaps ---------------- */
 
 function setupBasemaps() {
+  const offMax = config.offline?.maxZoom ?? 12;
   const bases = {
     Map: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 18, attribution: "© OpenStreetMap · airspace luftrom.info · vern Miljødirektoratet",
     }),
+    Norway: kartverketBasemap(L, { layer: config.offline?.layer || "topo", maxNativeZoom: offMax }),
     Topo: L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
       maxZoom: 17, attribution: "© OpenTopoMap (CC-BY-SA) · OpenStreetMap",
     }),
@@ -99,23 +105,32 @@ function setupBasemaps() {
       maxZoom: 18, attribution: "© Esri World Imagery",
     }),
   };
-  bases.Map.addTo(map);
+  const DEFAULT = "Map";
   const seg = document.getElementById("basemaps");
-  let current = bases.Map;
-  Object.entries(bases).forEach(([label, layer], i) => {
+  const buttons = {};
+  let current = bases[DEFAULT];
+  current.addTo(map);
+
+  function switchTo(label) {
+    const layer = bases[label];
+    if (!layer || layer === current) return;
+    map.removeLayer(current);
+    layer.addTo(map);
+    current = layer;
+    Object.values(buttons).forEach(c => c.classList.remove("active"));
+    buttons[label].classList.add("active");
+  }
+
+  Object.keys(bases).forEach(label => {
     const b = document.createElement("button");
     b.textContent = label;
-    if (i === 0) b.classList.add("active");
-    b.onclick = () => {
-      if (layer === current) return;
-      map.removeLayer(current);
-      layer.addTo(map);
-      current = layer;
-      [...seg.children].forEach(c => c.classList.remove("active"));
-      b.classList.add("active");
-    };
+    if (label === DEFAULT) b.classList.add("active");
+    b.onclick = () => switchTo(label);
     seg.appendChild(b);
+    buttons[label] = b;
   });
+
+  return { switchTo };
 }
 
 /* ---------------- Layer building ---------------- */

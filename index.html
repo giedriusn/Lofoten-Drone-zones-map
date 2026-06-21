@@ -43,6 +43,8 @@
         <div class="seg" id="basemaps"></div>
       </section>
 
+      <section class="offline" id="offline" hidden></section>
+
       <a class="rulesbtn rulesbtn--notam" href="https://notaminfo.com/norwaymap" target="_blank" rel="noopener">🔴 Live NOTAMs — is a zone active today? ↗</a>
       <button id="glossaryBtn" class="rulesbtn">❓ What do the zones mean?</button>
       <button id="rulesBtn" class="rulesbtn">📋 Drone rules — under 250 g</button>
@@ -171,6 +173,6 @@
   <div id="loading" class="loading">Loading restriction data…</div>
 
   <script src="vendor/leaflet.js"></script>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
