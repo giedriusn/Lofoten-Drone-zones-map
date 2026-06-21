@@ -144,8 +144,8 @@ a { color: var(--accent); }
 }
 .rulesbtn:hover { border-color: var(--accent); }
 .rulesbtn + .rulesbtn { margin-top: 8px; }
-.rulesbtn--notam { border-color: rgba(255,45,85,.45); background: rgba(255,45,85,.10); color: #ffb3c2; }
-.rulesbtn--notam:hover { border-color: #ff2d55; }
+.rulesbtn--notam { border-color: rgba(255,34,56,.45); background: rgba(255,34,56,.10); color: #ffb3c2; }
+.rulesbtn--notam:hover { border-color: #ff2238; }
 
 .modal {
   position: absolute; inset: 0; z-index: 2000;
@@ -207,7 +207,7 @@ ul.gloss .gloss-title b { display: inline; margin: 0; }
   font-size: 9.5px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase;
   padding: 2px 7px; border-radius: 20px; white-space: nowrap;
 }
-.badge--nofly { background: rgba(255,45,85,.18); color: #ff8aa0; border: 1px solid rgba(255,45,85,.45); }
+.badge--nofly { background: rgba(255,34,56,.18); color: #ff8aa0; border: 1px solid rgba(255,34,56,.45); }
 .badge--perm { background: rgba(255,149,0,.16); color: #ffc06a; border: 1px solid rgba(255,149,0,.45); }
 .badge--caution { background: rgba(255,214,10,.14); color: #ffe08a; border: 1px solid rgba(255,214,10,.45); }
 .badge--ok { background: rgba(52,199,89,.14); color: #8fe6a3; border: 1px solid rgba(52,199,89,.45); }

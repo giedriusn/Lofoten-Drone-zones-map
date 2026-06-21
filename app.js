@@ -20,19 +20,21 @@ const COLORS = {
 
 // Layer definitions: how each is sourced from the data files, styled, and labelled.
 // `blocking` = a legal/physical no-fly that should drive the "restricted" verdict;
-// non-blocking layers are context/advisory only.
+//   non-blocking layers are context/advisory only.
+// `severity` = how the zone is coloured & weighted by styleFor (see COLORS palette above):
+//   nofly · permission · conditional · caution · context.
 const LAYER_DEFS = [
-  { id: "airport", name: "Airport 5 km zone", color: COLORS.airport, on: true, file: "airports", blocking: true },
-  { id: "ctr", name: "Control zones (CTR)", color: COLORS.ctr, on: true, file: "airspace", match: p => p.category === "ctr", blocking: true },
-  { id: "tiz", name: "Traffic info zones (TIZ)", color: COLORS.tiz, on: true, file: "airspace", match: p => p.category === "tiz", dashed: true, blocking: true },
-  { id: "restricted", name: "Restricted areas", color: COLORS.restricted, on: true, file: "airspace", match: p => p.category === "restricted", blocking: true },
-  { id: "danger", name: "Danger areas (firing/military)", color: COLORS.danger, on: true, file: "airspace", match: p => p.category === "danger", dashed: true, blocking: true },
-  { id: "exercise", name: "Military exercise areas (NOTAM)", color: COLORS.exercise, on: true, file: "airspace", match: p => p.category === "exercise", dashed: true, blocking: false },
-  { id: "nature", name: "Nature reserves & parks", color: COLORS.reserve, on: true, file: "nature", blocking: true },
-  { id: "helipad", name: "Hospital / HEMS helipads", color: COLORS.helipad, on: true, file: "helipads", blocking: false },
-  { id: "airsport", name: "Air sports areas", color: COLORS.airsport, on: false, file: "airspace", match: p => p.category === "airsport", blocking: false },
-  { id: "populated", name: "Populated areas", color: COLORS.populated, on: false, file: "populated", blocking: false },
-  { id: "controlled", name: "Controlled airspace (high)", color: COLORS.controlled, on: false, file: "airspace", match: p => p.category === "controlled", blocking: false },
+  { id: "airport", name: "Airport 5 km zone", color: COLORS.airport, on: true, file: "airports", blocking: true, severity: "permission" },
+  { id: "ctr", name: "Control zones (CTR)", color: COLORS.ctr, on: true, file: "airspace", match: p => p.category === "ctr", blocking: true, severity: "permission" },
+  { id: "tiz", name: "Traffic info zones (TIZ)", color: COLORS.tiz, on: true, file: "airspace", match: p => p.category === "tiz", dashed: true, blocking: true, severity: "permission" },
+  { id: "restricted", name: "Restricted areas", color: COLORS.restricted, on: true, file: "airspace", match: p => p.category === "restricted", blocking: true, severity: "nofly" },
+  { id: "danger", name: "Danger areas (firing/military)", color: COLORS.danger, on: true, file: "airspace", match: p => p.category === "danger", dashed: true, blocking: true, severity: "nofly" },
+  { id: "exercise", name: "Military exercise areas (NOTAM)", color: COLORS.exercise, on: true, file: "airspace", match: p => p.category === "exercise", dashed: true, blocking: false, severity: "conditional" },
+  { id: "nature", name: "Nature reserves & parks", color: COLORS.reserve, on: true, file: "nature", blocking: true, severity: "nofly" },
+  { id: "helipad", name: "Hospital / HEMS helipads", color: COLORS.helipad, on: true, file: "helipads", blocking: false, severity: "caution" },
+  { id: "airsport", name: "Air sports areas", color: COLORS.airsport, on: false, file: "airspace", match: p => p.category === "airsport", blocking: false, severity: "caution" },
+  { id: "populated", name: "Populated areas", color: COLORS.populated, on: false, file: "populated", blocking: false, severity: "caution" },
+  { id: "controlled", name: "Controlled airspace (high)", color: COLORS.controlled, on: false, file: "airspace", match: p => p.category === "controlled", blocking: false, severity: "context" },
 ];
 
 let map, config;
@@ -185,19 +187,22 @@ function addPlacePoint(group, f, def) {
   group.addLayer(dot);
 }
 
+// National parks render a deeper red than ordinary reserves (both strict no-fly).
+// Single source of truth for a feature's colour, shared by styleFor and the popup.
+function colorFor(def, p) {
+  if (def.id === "nature" && (p.category || "").includes("nasjonalpark")) return COLORS.park;
+  return def.color;
+}
+
 function styleFor(def, p) {
-  // National parks a deeper red than ordinary reserves; both are strict no-fly.
-  let color = def.color, fillColor = def.color;
-  if (def.id === "nature" && (p.category || "").includes("nasjonalpark")) {
-    color = COLORS.park; fillColor = COLORS.park;
-  }
-  // Strict no-fly zones (restricted / danger / nature) drawn bolder & more opaque
-  // so the red reads unmistakably. TIZ are large Class-G advisory zones (coordinate
-  // with AFIS, not a hard clearance) — rendered lighter/thinner so a ~30 km zone
-  // doesn't shout as loudly as a 5 km hard ring.
-  const noFly = def.id === "restricted" || def.id === "danger" || def.id === "nature";
+  const color = colorFor(def, p);
+  // Strict no-fly zones (severity "nofly": restricted / danger / nature) are drawn
+  // bolder & more opaque so the red reads unmistakably. TIZ are large Class-G advisory
+  // zones (coordinate with AFIS, not a hard clearance) — rendered lighter/thinner so a
+  // ~30 km zone doesn't shout as loudly as a 5 km hard ring.
+  const noFly = def.severity === "nofly";
   return {
-    color, fillColor,
+    color, fillColor: color,
     weight: noFly ? 2.2 : def.id === "tiz" ? 1 : 1.5,
     fillOpacity: def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.08
       : def.id === "populated" ? 0.18 : noFly ? 0.24 : 0.16,
@@ -345,7 +350,7 @@ function renderResult(latlng, hits, nearest) {
     : `<div class="verdict clear"><span class="verdict__dot"></span>No drone restriction at ≤120 m</div>`;
 
   const renderHit = h => {
-    const color = (h.def.id === "nature" && (h.p.category || "").includes("nasjonalpark")) ? COLORS.park : h.def.color;
+    const color = colorFor(h.def, h.p);
     let type = h.def.file === "airspace" ? h.p.label : h.def.file === "nature" ? (h.p.verneform || "Protected area") : h.def.name;
     if (h.def.id === "airport") type = h.p.buffer_km > 0 ? "Airport · 5 km zone" : type;
     const reg = h.p.regulation ? ` <a href="${esc(safeUrl(h.p.regulation))}" target="_blank" rel="noopener">regulation ↗</a>` : "";
