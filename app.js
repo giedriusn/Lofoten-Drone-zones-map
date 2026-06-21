@@ -3,25 +3,26 @@
    "can I fly at this point?" via point-in-polygon / distance checks. */
 
 const COLORS = {
-  airport: "#ff3b30",
-  ctr: "#ff9500",
-  tiz: "#ffc46b",
-  restricted: "#c026d3",
-  danger: "#ff2d55",
-  exercise: "#9a6fb0",
-  airsport: "#ffd60a",
-  helipad: "#00c2d1",
-  controlled: "#8aa0b6",
-  reserve: "#34c759",
-  park: "#0a7d3c",
-  populated: "#4d8fd6",
+  // Severity palette: RED = strict no-fly · ORANGE = need permission · others = caution/context
+  airport: "#ff9f0a",     // need permission → orange
+  ctr: "#ff9500",         // need permission → orange
+  tiz: "#ffc46b",         // need permission → light orange
+  restricted: "#ff2238",  // strict no-fly → red
+  danger: "#ff2238",      // strict no-fly → red
+  reserve: "#ff2238",     // nature reserve = strict no-fly → red
+  park: "#c1121f",        // national park → deeper red
+  exercise: "#9a6fb0",    // conditional (NOTAM) → violet
+  airsport: "#ffd60a",    // caution → yellow
+  helipad: "#00c2d1",     // caution → cyan
+  populated: "#4d8fd6",   // caution → blue
+  controlled: "#8aa0b6",  // context (high) → grey
 };
 
 // Layer definitions: how each is sourced from the data files, styled, and labelled.
 // `blocking` = a legal/physical no-fly that should drive the "restricted" verdict;
 // non-blocking layers are context/advisory only.
 const LAYER_DEFS = [
-  { id: "airport", name: "Airport 5 km no-fly", color: COLORS.airport, on: true, file: "airports", blocking: true },
+  { id: "airport", name: "Airport 5 km zone", color: COLORS.airport, on: true, file: "airports", blocking: true },
   { id: "ctr", name: "Control zones (CTR)", color: COLORS.ctr, on: true, file: "airspace", match: p => p.category === "ctr", blocking: true },
   { id: "tiz", name: "Traffic info zones (TIZ)", color: COLORS.tiz, on: true, file: "airspace", match: p => p.category === "tiz", dashed: true, blocking: true },
   { id: "restricted", name: "Restricted areas", color: COLORS.restricted, on: true, file: "airspace", match: p => p.category === "restricted", blocking: true },
@@ -185,18 +186,21 @@ function addPlacePoint(group, f, def) {
 }
 
 function styleFor(def, p) {
-  // National parks get a deeper green than ordinary reserves.
+  // National parks a deeper red than ordinary reserves; both are strict no-fly.
   let color = def.color, fillColor = def.color;
   if (def.id === "nature" && (p.category || "").includes("nasjonalpark")) {
     color = COLORS.park; fillColor = COLORS.park;
   }
-  // TIZ are large Class-G advisory zones (coordinate with AFIS, not a hard
-  // clearance like a CTR) — render them lighter and thinner so a ~30 km zone
-  // doesn't read as strongly as a 5 km hard ring.
+  // Strict no-fly zones (restricted / danger / nature) drawn bolder & more opaque
+  // so the red reads unmistakably. TIZ are large Class-G advisory zones (coordinate
+  // with AFIS, not a hard clearance) — rendered lighter/thinner so a ~30 km zone
+  // doesn't shout as loudly as a 5 km hard ring.
+  const noFly = def.id === "restricted" || def.id === "danger" || def.id === "nature";
   return {
     color, fillColor,
-    weight: def.id === "tiz" ? 1 : 1.5,
-    fillOpacity: def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.08 : def.id === "populated" ? 0.18 : 0.16,
+    weight: noFly ? 2.2 : def.id === "tiz" ? 1 : 1.5,
+    fillOpacity: def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.08
+      : def.id === "populated" ? 0.18 : noFly ? 0.24 : 0.16,
     dashArray: def.dashed ? "6 4" : null,
   };
 }
