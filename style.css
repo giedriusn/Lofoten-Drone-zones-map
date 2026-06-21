@@ -16,7 +16,7 @@
   --c-reserve: #ff2238;
   --c-park: #c1121f;
   --c-populated: #4d8fd6;
-  --c-airsport: #ffd60a;
+  --c-airsport: #ffc400;
   --c-helipad: #00c2d1;
   --c-exercise: #9a6fb0;
 
@@ -209,7 +209,7 @@ ul.gloss .gloss-title b { display: inline; margin: 0; }
 }
 .badge--nofly { background: rgba(255,34,56,.18); color: #ff8aa0; border: 1px solid rgba(255,34,56,.45); }
 .badge--perm { background: rgba(255,149,0,.16); color: #ffc06a; border: 1px solid rgba(255,149,0,.45); }
-.badge--caution { background: rgba(255,214,10,.14); color: #ffe08a; border: 1px solid rgba(255,214,10,.45); }
+.badge--caution { background: rgba(255,196,0,.18); color: #ffdd6b; border: 1px solid rgba(255,196,0,.7); }
 .badge--ok { background: rgba(52,199,89,.14); color: #8fe6a3; border: 1px solid rgba(52,199,89,.45); }
 .badge--notam { background: rgba(154,111,176,.18); color: #c9a8e0; border: 1px solid rgba(154,111,176,.5); }
 

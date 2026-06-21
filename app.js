@@ -12,7 +12,7 @@ const COLORS = {
   reserve: "#ff2238",     // nature reserve = strict no-fly → red
   park: "#c1121f",        // national park → deeper red
   exercise: "#9a6fb0",    // conditional (NOTAM) → violet
-  airsport: "#ffd60a",    // caution → yellow
+  airsport: "#ffc400",    // caution → yellow (deeper than pale gold for contrast on the light basemap)
   helipad: "#00c2d1",     // caution → cyan
   populated: "#4d8fd6",   // caution → blue
   controlled: "#8aa0b6",  // context (high) → grey
@@ -32,7 +32,7 @@ const LAYER_DEFS = [
   { id: "exercise", name: "Military exercise areas (NOTAM)", color: COLORS.exercise, on: true, file: "airspace", match: p => p.category === "exercise", dashed: true, blocking: false, severity: "conditional" },
   { id: "nature", name: "Nature reserves & parks", color: COLORS.reserve, on: true, file: "nature", blocking: true, severity: "nofly" },
   { id: "helipad", name: "Hospital / HEMS helipads", color: COLORS.helipad, on: true, file: "helipads", blocking: false, severity: "caution" },
-  { id: "airsport", name: "Air sports areas", color: COLORS.airsport, on: false, file: "airspace", match: p => p.category === "airsport", blocking: false, severity: "caution" },
+  { id: "airsport", name: "Air sports areas", color: COLORS.airsport, on: false, file: "airspace", match: p => p.category === "airsport", blocking: false, severity: "caution", stroke: "#7a5200", weight: 2 },
   { id: "populated", name: "Populated areas", color: COLORS.populated, on: false, file: "populated", blocking: false, severity: "caution" },
   { id: "controlled", name: "Controlled airspace (high)", color: COLORS.controlled, on: false, file: "airspace", match: p => p.category === "controlled", blocking: false, severity: "context" },
 ];
@@ -195,15 +195,17 @@ function colorFor(def, p) {
 }
 
 function styleFor(def, p) {
-  const color = colorFor(def, p);
+  const fill = colorFor(def, p);
   // Strict no-fly zones (severity "nofly": restricted / danger / nature) are drawn
   // bolder & more opaque so the red reads unmistakably. TIZ are large Class-G advisory
   // zones (coordinate with AFIS, not a hard clearance) — rendered lighter/thinner so a
-  // ~30 km zone doesn't shout as loudly as a 5 km hard ring.
+  // ~30 km zone doesn't shout as loudly as a 5 km hard ring. A def may set `stroke`
+  // (a darker outline than its fill) and/or `weight`: pale-yellow zones wash out on the
+  // light basemap, so they get a dark amber edge drawn a little heavier.
   const noFly = def.severity === "nofly";
   return {
-    color, fillColor: color,
-    weight: noFly ? 2.2 : def.id === "tiz" ? 1 : 1.5,
+    color: def.stroke || fill, fillColor: fill,
+    weight: def.weight ?? (noFly ? 2.2 : def.id === "tiz" ? 1 : 1.5),
     fillOpacity: def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.08
       : def.id === "populated" ? 0.18 : noFly ? 0.24 : 0.16,
     dashArray: def.dashed ? "6 4" : null,
