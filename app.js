@@ -156,7 +156,7 @@ function addAirport(group, f, def) {
     fillOpacity: controlled ? 1 : 0.9,
   });
   dot.bindPopup(popupHtml(f, def));
-  dot.bindTooltip(p.name, { direction: "top", offset: [0, -6] });
+  dot.bindTooltip(esc(p.name), { direction: "top", offset: [0, -6] });
   group.addLayer(dot);
 }
 
@@ -170,7 +170,7 @@ function addHelipad(group, f, def) {
   });
   const m = L.marker([lat, lon], { icon });
   m.bindPopup(popupHtml(f, def));
-  m.bindTooltip(p.name, { direction: "top", offset: [0, -9] });
+  m.bindTooltip(esc(p.name), { direction: "top", offset: [0, -9] });
   group.addLayer(m);
 }
 
@@ -182,7 +182,7 @@ function addPlacePoint(group, f, def) {
     radius: big ? 5 : 3, color: def.color, weight: 1,
     fillColor: def.color, fillOpacity: 0.6,
   });
-  dot.bindTooltip(p.name || p.place, { permanent: big, direction: "right", className: "place-label", offset: [6, 0] });
+  dot.bindTooltip(esc(p.name || p.place), { permanent: big, direction: "right", className: "place-label", offset: [6, 0] });
   dot.bindPopup(popupHtml(f, def));
   group.addLayer(dot);
 }
@@ -222,7 +222,7 @@ function popupHtml(f, def) {
     if (Number.isFinite(p.floor_m)) extra += `<div class="pp-rule">Floor: ${p.floor_m} m · Ceiling: ${fmtCeil(p.ceil_m)}</div>`;
   } else if (def.file === "nature") {
     type = p.verneform || "Protected area";
-    if (p.municipality) extra += `<div class="pp-rule">${p.municipality}${p.protected_since ? " · since " + p.protected_since : ""}</div>`;
+    if (p.municipality) extra += `<div class="pp-rule">${esc(p.municipality)}${p.protected_since ? " · since " + esc(p.protected_since) : ""}</div>`;
   } else if (def.id === "airport") {
     const base = p.kind === "heliport" ? "Heliport" : p.buffer_km > 0 ? "Airport" : "Uncontrolled airfield";
     type = p.icao ? `${base} · ${p.icao}` : base;
