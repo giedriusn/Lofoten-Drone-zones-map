@@ -309,7 +309,9 @@ function wireModal(btnId, modalId, closeId) {
   btn.onclick = open;
   closeBtn.onclick = close;
   modal.onclick = e => { if (e.target === modal) close(); };
-  modal.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+  // Bind Escape on document, not the modal: a click on non-focusable modal content
+  // moves focus out of the modal subtree, after which a modal-scoped keydown never fires.
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !modal.classList.contains("modal--hidden")) close(); });
 }
 
 function analyzePoint(latlng) {

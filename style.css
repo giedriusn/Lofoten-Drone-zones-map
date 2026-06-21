@@ -152,9 +152,11 @@ a { color: var(--accent); }
   position: absolute; inset: 0; z-index: 2000;
   display: flex; align-items: center; justify-content: center;
   background: rgba(6, 10, 16, 0.6); backdrop-filter: blur(4px);
-  padding: 20px; transition: opacity .18s;
+  padding: 20px; transition: opacity .18s, visibility 0s;
 }
-.modal--hidden { opacity: 0; pointer-events: none; }
+/* visibility:hidden also drops the modal from the tab order & AT tree while hidden;
+   delay it one transition so the fade-out still plays. */
+.modal--hidden { opacity: 0; pointer-events: none; visibility: hidden; transition: opacity .18s, visibility 0s .18s; }
 .modal__card {
   width: 560px; max-width: 100%; max-height: calc(100vh - 40px);
   display: flex; flex-direction: column;
@@ -245,9 +247,11 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
   border-radius: 14px;
   box-shadow: 0 18px 48px rgba(0,0,0,.5);
   overflow: hidden;
-  transition: transform .2s, opacity .2s;
+  transition: transform .2s, opacity .2s, visibility 0s;
 }
-.result--hidden { transform: translateY(20px); opacity: 0; pointer-events: none; }
+/* visibility:hidden keeps the hidden panel (close button + links) out of the tab
+   order & AT tree; delay it past the slide-out so the animation still plays. */
+.result--hidden { transform: translateY(20px); opacity: 0; pointer-events: none; visibility: hidden; transition: transform .2s, opacity .2s, visibility 0s .2s; }
 .result__head {
   display: flex; justify-content: space-between; align-items: center;
   padding: 11px 14px; border-bottom: 1px solid var(--line);
