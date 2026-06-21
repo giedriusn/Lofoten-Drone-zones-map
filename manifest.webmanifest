@@ -2,6 +2,7 @@
   "name": "Drone Zones — Lofoten · Bodø · Narvik",
   "short_name": "Drone Zones",
   "description": "Offline map of permanent drone-flight restrictions in Northern Norway.",
+  "id": ".",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

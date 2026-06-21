@@ -21,34 +21,43 @@ export function kartverketBasemap(L, { layer = "topo", maxNativeZoom = 12 } = {}
   });
 }
 
-const fmtMB = b => (b / (1024 * 1024)).toFixed(0);
+const fmtMB = b => { const mb = b / (1024 * 1024); return mb < 1 ? "<1" : mb.toFixed(0); };
 
-// Download every region tile into TILE_CACHE with bounded concurrency. Opaque
-// (no-cors) responses are cacheable and render in Leaflet's cross-origin <img>.
+// Download every region tile into TILE_CACHE with bounded concurrency. Kartverket
+// sends `Access-Control-Allow-Origin: *`, so we fetch with CORS and can verify the
+// status — a 4xx/5xx/429 is NOT cached (it would otherwise masquerade as a saved
+// tile and be skipped forever by the resumability check, leaving a silent hole).
+// Failed tiles are left uncached so re-running the download fills the gaps.
 async function downloadRegion({ bbox, minZoom, maxZoom, layer, signal, onProgress }) {
   const tiles = tilesForBbox({ bbox, minZoom, maxZoom });
   const cache = await caches.open(TILE_CACHE);
-  let done = 0, failed = 0, i = 0;
+  let done = 0, failed = 0, i = 0, quotaHit = false;
   const fetchOne = async t => {
     const url = kartverketUrl(t, layer);
-    if (await cache.match(url)) return;       // resumable: skip cached
-    const resp = await fetch(url, { mode: "no-cors", signal });
-    await cache.put(url, resp);
+    if (await cache.match(url)) return;       // resumable: skip already-cached
+    const resp = await fetch(url, { mode: "cors", signal });
+    if (!resp.ok) throw new Error("tile " + resp.status);
+    await cache.put(url, resp);               // rejects with QuotaExceededError if disk full
   };
   const worker = async () => {
-    while (i < tiles.length) {
+    while (i < tiles.length && !quotaHit) {
       if (signal.aborted) return;
       const t = tiles[i++];
       try { await fetchOne(t); }
       catch (e) {
         if (signal.aborted) return;
-        try { await fetchOne(t); } catch { failed++; } // one retry
+        if (e && e.name === "QuotaExceededError") { quotaHit = true; return; }
+        try { await fetchOne(t); }            // one retry (transient network/429)
+        catch (e2) {
+          if (e2 && e2.name === "QuotaExceededError") { quotaHit = true; return; }
+          failed++;
+        }
       }
       onProgress(++done, tiles.length, failed);
     }
   };
   await Promise.all(Array.from({ length: 6 }, worker));
-  return { done, failed, total: tiles.length };
+  return { done, failed, total: tiles.length, quotaHit };
 }
 
 async function usageText() {
@@ -76,9 +85,10 @@ export function setupOfflineUI({ config, switchBasemap }) {
     <div id="dlStatus" class="offline__status"></div>`;
   const btn = root.querySelector("#dlOffline");
   const status = root.querySelector("#dlStatus");
-  let controller = null;
+  let controller = null, idleTimer = null;
+  const deferIdle = ms => { if (idleTimer) clearTimeout(idleTimer); idleTimer = setTimeout(showIdle, ms); };
 
-  const showIdle = async () => {
+  async function showIdle() {
     btn.textContent = "⬇ Save map for offline (Norway)";
     btn.classList.remove("rulesbtn--danger");
     status.innerHTML = `~${total.toLocaleString()} tiles · ~${fmtMB(est)} MB (approx)${await usageText()}`
@@ -87,12 +97,13 @@ export function setupOfflineUI({ config, switchBasemap }) {
     if (clr) clr.onclick = async () => {
       await caches.delete(TILE_CACHE);
       status.textContent = "Offline map cleared.";
-      setTimeout(showIdle, 1200);
+      deferIdle(1200);
     };
-  };
+  }
 
   btn.onclick = async () => {
     if (controller) { controller.abort(); return; }   // click again = cancel
+    if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
     if (switchBasemap) switchBasemap("Norway");
     controller = new AbortController();
     btn.textContent = "■ Cancel download";
@@ -106,14 +117,17 @@ export function setupOfflineUI({ config, switchBasemap }) {
             + (failed ? ` · ${failed} failed` : "");
         },
       });
-      status.textContent = controller.signal.aborted
-        ? `Stopped — partial map saved (${r.done.toLocaleString()} tiles).`
-        : `Saved ${(r.done - r.failed).toLocaleString()} tiles${r.failed ? ` (${r.failed} failed)` : ""}. Works offline now.`;
+      const saved = (r.done - r.failed).toLocaleString();
+      status.textContent = r.quotaHit
+        ? `Storage full — saved ${saved} tiles. Lower offline.maxZoom or free space, then try again.`
+        : controller.signal.aborted
+        ? `Stopped — partial map saved (${saved} tiles).`
+        : `Saved ${saved} tiles${r.failed ? ` (${r.failed} failed — tap again to fill the gaps)` : ""}. Works offline now.`;
     } catch (e) {
       status.textContent = "Download failed — check your connection and try again.";
     } finally {
       controller = null;
-      setTimeout(showIdle, 2500);
+      deferIdle(3000);
     }
   };
 

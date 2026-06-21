@@ -37,7 +37,8 @@ export function countTilesForBbox({ bbox, minZoom, maxZoom }) {
 }
 
 // Kartverket WMTS webmercator: TileMatrix(z) / TileRow(y) / TileCol(x).
-// Pass literal {z}/{x}/{y} strings to build a Leaflet template URL.
+// Accepts numbers (downloader/tests) or the literal "{z}"/"{x}"/"{y}" placeholder
+// strings (to build a Leaflet tileLayer template URL).
 export function kartverketUrl({ z, x, y }, layer = "topo") {
   return `https://cache.kartverket.no/v1/wmts/1.0.0/${layer}/default/webmercator/${z}/${y}/${x}.png`;
 }

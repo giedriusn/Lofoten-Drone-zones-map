@@ -126,7 +126,8 @@ scripts/tiles.test.mjs             unit tests for the tile math (node --test)
 config.json                        region bbox, airport rules, offline zoom range, source URLs
 ```
 
-Run the tile-math tests with `node --test scripts/tiles.test.mjs` (no deps).
+Run the unit tests (tile math + offline-asset invariants) with `node --test`
+(no deps, Node 18+).
 
 ## Offline use on iPhone (phase 2)
 
@@ -161,3 +162,10 @@ empty after weeks unused.
 The other basemaps (OpenStreetMap, OpenTopoMap, satellite) remain for online use;
 tiles you view online are cached opportunistically, but only **Norway** is
 bulk-downloadable for guaranteed offline coverage.
+
+**Updating a deployed copy:** restriction data (`data/*.geojson`) and `config.json`
+are served *network-first*, so corrections reach installed users automatically the
+next time they open the app online. The app *shell* (HTML/JS/CSS) is cached for
+instant offline loads — when you change shell code, bump `SHELL_CACHE` in `sw.js`
+(e.g. `drone-shell-v2`) so the service worker re-caches it. The tile cache is never
+auto-purged, so a release never forces users to re-download the ~150 MB of tiles.
