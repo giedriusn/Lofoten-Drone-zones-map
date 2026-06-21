@@ -355,14 +355,15 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
     width: auto;
   }
 
-  /* Below the collapsed panel header (top 10px + header ~53px ≈ 63px), with margin.
-     The header is fixed-content, so this clears it; revisit if the title grows a line. */
-  .pickhint { top: calc(78px + env(safe-area-inset-top)); }
+  /* Below the collapsed panel header. The 44px touch-target toggle (below) is the
+     header's tallest child, so it stands ~71px tall (top 10px + 71 ≈ 81px bottom);
+     sit ~10px under that. Revisit if the title grows a line. */
+  .pickhint { top: calc(92px + env(safe-area-inset-top)); }
 
   /* Leaflet's zoom control defaults to the top-left, directly under the panel —
-     drop it below the collapsed header (same ~63px derivation) and clear of the
-     notch, and grow the buttons to a comfortable touch size. */
-  .leaflet-top.leaflet-left { margin-top: calc(80px + env(safe-area-inset-top)); }
+     drop it below the collapsed header (~81px bottom, same derivation as .pickhint)
+     and clear of the notch, and grow the buttons to a comfortable touch size. */
+  .leaflet-top.leaflet-left { margin-top: calc(94px + env(safe-area-inset-top)); }
   .leaflet-left { margin-left: env(safe-area-inset-left); }
   .leaflet-right { margin-right: env(safe-area-inset-right); }
   .leaflet-bottom { margin-bottom: env(safe-area-inset-bottom); }
