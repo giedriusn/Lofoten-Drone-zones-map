@@ -123,6 +123,7 @@ vendor/                            Leaflet 1.9.4, vendored for offline use
 data/*.geojson                     generated restriction layers
 scripts/build-data.mjs             the data pipeline (fetch → clip → normalize)
 scripts/tiles.test.mjs             unit tests for the tile math (node --test)
+scripts/offline-assets.test.mjs    invariants: shell assets exist, cache name in sync
 config.json                        region bbox, airport rules, offline zoom range, source URLs
 ```
 

@@ -49,6 +49,7 @@ async function downloadRegion({ bbox, minZoom, maxZoom, layer, signal, onProgres
         if (e && e.name === "QuotaExceededError") { quotaHit = true; return; }
         try { await fetchOne(t); }            // one retry (transient network/429)
         catch (e2) {
+          if (signal.aborted) return;         // cancelled mid-retry — not a real failure
           if (e2 && e2.name === "QuotaExceededError") { quotaHit = true; return; }
           failed++;
         }
@@ -78,10 +79,12 @@ export function setupOfflineUI({ config, switchBasemap }) {
   const total = countTilesForBbox({ bbox, minZoom, maxZoom });
   const est = estimateBytes(total, perTile);
 
+  const idleLabel = "⬇ Save map for offline (Norway)";
+
   root.hidden = false;
   root.innerHTML = `
     <span class="offline__label">Offline use</span>
-    <button id="dlOffline" class="rulesbtn">⬇ Save map for offline (Norway)</button>
+    <button id="dlOffline" class="rulesbtn">${idleLabel}</button>
     <div id="dlStatus" class="offline__status"></div>`;
   const btn = root.querySelector("#dlOffline");
   const status = root.querySelector("#dlStatus");
@@ -89,7 +92,7 @@ export function setupOfflineUI({ config, switchBasemap }) {
   const deferIdle = ms => { if (idleTimer) clearTimeout(idleTimer); idleTimer = setTimeout(showIdle, ms); };
 
   async function showIdle() {
-    btn.textContent = "⬇ Save map for offline (Norway)";
+    btn.textContent = idleLabel;
     btn.classList.remove("rulesbtn--danger");
     status.innerHTML = `~${total.toLocaleString()} tiles · ~${fmtMB(est)} MB (approx)${await usageText()}`
       + ` · <button id="clrOffline" class="linkbtn">Clear</button>`;
@@ -127,6 +130,11 @@ export function setupOfflineUI({ config, switchBasemap }) {
       status.textContent = "Download failed — check your connection and try again.";
     } finally {
       controller = null;
+      // `controller` is now null, so the next tap means "start a new download" — reset
+      // the button immediately so its label says so instead of still reading "Cancel"
+      // during the 3 s the completion message lingers.
+      btn.textContent = idleLabel;
+      btn.classList.remove("rulesbtn--danger");
       deferIdle(3000);
     }
   };

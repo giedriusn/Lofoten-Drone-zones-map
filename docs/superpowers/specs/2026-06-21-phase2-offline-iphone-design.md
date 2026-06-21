@@ -119,7 +119,13 @@ rely on app.js globals — everything is wired by id in JS.)
   `clients.claim()`.
 - **fetch**:
   - Tile hosts (`cache.kartverket.no` + the online basemap hosts) → **cache-first**
-    against `TILE_CACHE`; on a cache miss, fetch (`no-cors`, opaque ok) and store.
+    against `TILE_CACHE`; on a cache miss, fetch with **CORS** (`mode: "cors"`) so the
+    response status is readable, and **only cache a `2xx` tile** — a transient
+    4xx/5xx/429 must not poison the durable cache and then be served forever. If the
+    CORS fetch rejects (a host dropped its `Access-Control-Allow-Origin: *`, or we are
+    offline), fall back to the original no-cors `<img>` request and return it
+    **uncached** (opaque status is unreadable), so installing the PWA never *breaks*
+    an online basemap that renders fine without the SW.
     Offline + uncached → fail (blank tile; mitigated by `maxNativeZoom`).
     Match tile hosts by **hostname suffix/pattern, not exact origin**, because
     OSM/OpenTopoMap rotate across `{s}` = `a/b/c` subdomains; the cache key is
@@ -137,12 +143,13 @@ change never forces a 150 MB re-download.
 
 `offline.mjs` enumerates `tilesForBbox({bbox, minZoom, maxZoom})` from
 `tiles.mjs`, then fetches each Kartverket URL with **bounded concurrency** (≈6)
-and an `AbortController` for cancel. Tiles are written straight into `TILE_CACHE`
-via `caches.open(TILE_CACHE).then(c => c.put(url, resp))` using `no-cors`
-(opaque responses are cacheable and render fine in Leaflet's cross-origin
-`<img>` tiles) — so the download path does not depend on Kartverket sending CORS
-headers, and the SW serves the same cache offline. Already-cached tiles are
-skipped (`cache.match`) so re-runs are cheap and resumable.
+and an `AbortController` for cancel. Each tile is fetched with **CORS**
+(`mode: "cors"`; Kartverket sends `Access-Control-Allow-Origin: *`) so the status
+is readable, and only a `2xx` response is written into `TILE_CACHE` — a failed
+fetch is left **uncached** so a silent hole can't masquerade as a saved tile, and
+re-running the download fills the gaps. The SW reads the same cache key, so the
+downloaded tiles serve offline. Already-cached tiles are skipped (`cache.match`)
+so re-runs are cheap and resumable.
 
 UI: a small section in the control panel — a **"⬇ Download offline map (Norway)"**
 button that shows live `done / total · MB` progress and a cancel button while

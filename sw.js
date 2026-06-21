@@ -46,8 +46,8 @@ function isTile(url) {
 }
 
 // Drop a leading a./b./c. subdomain so a tile cached under one is found under another.
-function tileCacheKey(reqUrl) {
-  const u = new URL(reqUrl);
+function tileCacheKey(url) {
+  const u = new URL(url); // clone — don't mutate the caller's URL
   u.hostname = u.hostname.replace(/^[abc]\./, "");
   return u.href;
 }
@@ -65,7 +65,7 @@ self.addEventListener("fetch", e => {
   if (isTile(url)) {
     e.respondWith((async () => {
       const cache = await caches.open(TILE_CACHE);
-      const key = tileCacheKey(req.url);
+      const key = tileCacheKey(url);
       const hit = await cache.match(key);
       if (hit) return hit;
       try {
@@ -73,7 +73,13 @@ self.addEventListener("fetch", e => {
         if (resp.ok) cache.put(key, resp.clone()).catch(() => {});
         return resp;
       } catch {
-        return Response.error();
+        // CORS unavailable (a host dropped its ACAO header) or offline. Fall back to
+        // the original no-cors <img> request so installing the PWA never *breaks* an
+        // online basemap that renders fine without the service worker. Opaque status
+        // is unreadable, so we don't cache this fallback — that would risk poisoning
+        // the durable cache with an error tile.
+        try { return await fetch(req); }
+        catch { return Response.error(); }
       }
     })());
     return;
@@ -90,8 +96,12 @@ self.addEventListener("fetch", e => {
       if (networkFirst) {
         try {
           const resp = await fetch(req);
-          if (resp.ok) cache.put(req, resp.clone()).catch(() => {});
-          return resp;
+          if (resp.ok) { cache.put(req, resp.clone()).catch(() => {}); return resp; }
+          // Server reachable but erroring (e.g. 5xx): prefer a good cached copy over
+          // handing the app an error body — that would blank a data layer (or fail
+          // init on config.json) even though we have valid data cached. Only return
+          // the error if nothing is cached.
+          return (await cache.match(req, { ignoreSearch: true })) || resp;
         } catch {
           return (await cache.match(req, { ignoreSearch: true })) || Response.error();
         }
