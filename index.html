@@ -36,6 +36,7 @@
         <div class="seg" id="basemaps"></div>
       </section>
 
+      <button id="glossaryBtn" class="rulesbtn">❓ What do the zones mean?</button>
       <button id="rulesBtn" class="rulesbtn">📋 Drone rules — under 250 g</button>
 
       <p class="disclaimer">
@@ -114,6 +115,38 @@
         </ul>
 
         <p class="modal__foot">Always confirm on <a href="https://flydrone.no" target="_blank" rel="noopener">flydrone.no</a> / the SafeToFly app and check NOTAMs before flying.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plain-language glossary / legend -->
+  <div id="glossaryModal" class="modal modal--hidden" role="dialog" aria-modal="true" aria-labelledby="glossTitle">
+    <div class="modal__card">
+      <header class="modal__head">
+        <div>
+          <h2 id="glossTitle">What do the zones mean?</h2>
+          <p>The colours on the map, in plain words. A red verdict means don't fly without checking first.</p>
+        </div>
+        <button id="glossaryClose" class="iconbtn" aria-label="Close">✕</button>
+      </header>
+      <div class="modal__body">
+        <ul class="gloss">
+          <li><span class="chip chip--ring" style="background:var(--c-airport)"></span><span><b>Airport — 5 km zone</b>Planes take off and land here. Stay 5 km away unless air traffic control gives you permission.</span></li>
+          <li><span class="chip" style="background:var(--c-ctr)"></span><span><b>Control &amp; traffic zone (CTR / TIZ)</b>The air right around an airport, from the ground up. You must contact the airport before flying.</span></li>
+          <li><span class="chip" style="background:var(--c-restricted)"></span><span><b>Restricted area</b>The authorities limit or ban flying here (e.g. around sensitive sites). Check the rule first.</span></li>
+          <li><span class="chip" style="background:var(--c-danger)"></span><span><b>Danger area (military)</b>The armed forces train here — live shooting, fast jets, exercises. It can be dangerous, so keep out when it's active.</span></li>
+          <li><span class="chip" style="background:var(--c-airsport)"></span><span><b>Air sports area</b>Paragliders, skydivers or small planes use this air. You could crash into them — stay clear.</span></li>
+          <li><span class="chip" style="background:var(--c-reserve)"></span><span><b>Nature reserve / national park</b>Protected nature. Drones scare animals — especially nesting birds — so flying is usually banned. Check the area's rule.</span></li>
+          <li><span class="chip chip--ring" style="background:var(--c-helipad)"></span><span><b>Hospital / HEMS helipad</b>Air-ambulance helicopters land here — low, fast and with no warning. Never get in their way.</span></li>
+          <li><span class="chip" style="background:var(--c-populated)"></span><span><b>Populated area</b>Towns and houses. Don't fly over crowds, and keep away from people who aren't part of your flight.</span></li>
+          <li><span class="chip" style="background:var(--c-controlled)"></span><span><b>Controlled airspace (high)</b>Airliner routes high in the sky. They sit above the 120 m drone limit, so they usually don't affect you — shown just for context.</span></li>
+        </ul>
+        <h3>Two numbers to remember</h3>
+        <ul class="gloss">
+          <li><span class="chip" style="background:#2a3a4d"></span><span><b>120 m</b>The highest your drone may go — about 400 ft above the ground below it.</span></li>
+          <li><span class="chip" style="background:#2a3a4d"></span><span><b>5 km</b>How far to stay from airports unless you have permission.</span></li>
+        </ul>
+        <p class="modal__foot">Why these exist: drones share the sky with planes, helicopters and wildlife. These zones keep everyone safe. When in doubt, don't fly — check <a href="https://flydrone.no" target="_blank" rel="noopener">flydrone.no</a>.</p>
       </div>
     </div>
   </div>

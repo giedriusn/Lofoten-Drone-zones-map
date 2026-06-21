@@ -15,6 +15,8 @@
   --c-reserve: #34c759;
   --c-park: #0a7d3c;
   --c-populated: #4d8fd6;
+  --c-airsport: #ffd60a;
+  --c-helipad: #00c2d1;
 
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -178,6 +180,21 @@ ul.rules cite {
   font-size: 10.5px; color: var(--muted); letter-spacing: .2px;
 }
 .modal__foot { font-size: 11.5px; color: var(--muted); margin: 18px 0 2px; }
+
+/* Glossary entries (legend + plain-English meaning) */
+ul.gloss { list-style: none; margin: 0; padding: 0; }
+ul.gloss li {
+  display: flex; gap: 11px; padding: 11px 0;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px; line-height: 1.5; color: var(--muted);
+}
+ul.gloss li:first-child { border-top: none; }
+ul.gloss .chip {
+  width: 15px; height: 15px; border-radius: 4px; flex: none; margin-top: 2px;
+  border: 1px solid rgba(255, 255, 255, .3);
+}
+ul.gloss .chip--ring { border-radius: 50%; }
+ul.gloss b { display: block; color: var(--text); margin-bottom: 2px; }
 
 /* ---------- Disclaimer ---------- */
 .disclaimer {

@@ -274,27 +274,24 @@ function wireControls() {
     document.getElementById("panelToggle").textContent = panel.classList.contains("collapsed") ? "+" : "–";
   };
 
-  // Sub-250 g rules modal (with basic focus management for keyboard/AT users)
-  const modal = document.getElementById("rulesModal");
-  const rulesBtn = document.getElementById("rulesBtn");
-  const rulesClose = document.getElementById("rulesClose");
-  // Make `aria-modal` honest: mark the background inert while the dialog is open
-  // so keyboard/AT focus can't escape behind it.
+  // Modals (rules + glossary) share focus/inert handling for keyboard & AT users.
+  wireModal("rulesBtn", "rulesModal", "rulesClose");
+  wireModal("glossaryBtn", "glossaryModal", "glossaryClose");
+}
+
+// Wire a modal dialog: open/close, backdrop click, Escape, focus management,
+// and mark the rest of the page inert so `aria-modal` is honest.
+function wireModal(btnId, modalId, closeId) {
+  const modal = document.getElementById(modalId);
+  const btn = document.getElementById(btnId);
+  const closeBtn = document.getElementById(closeId);
   const bg = ["panel", "result", "map"].map(id => document.getElementById(id)).filter(Boolean);
-  const openModal = () => {
-    bg.forEach(el => el.setAttribute("inert", ""));
-    modal.classList.remove("modal--hidden"); rulesClose.focus();
-  };
-  const closeModal = () => {
-    modal.classList.add("modal--hidden");
-    bg.forEach(el => el.removeAttribute("inert")); rulesBtn.focus();
-  };
-  rulesBtn.onclick = openModal;
-  rulesClose.onclick = closeModal;
-  modal.onclick = e => { if (e.target === modal) closeModal(); };
-  document.addEventListener("keydown", e => {
-    if (e.key === "Escape" && !modal.classList.contains("modal--hidden")) closeModal();
-  });
+  const open = () => { bg.forEach(el => el.setAttribute("inert", "")); modal.classList.remove("modal--hidden"); closeBtn.focus(); };
+  const close = () => { modal.classList.add("modal--hidden"); bg.forEach(el => el.removeAttribute("inert")); btn.focus(); };
+  btn.onclick = open;
+  closeBtn.onclick = close;
+  modal.onclick = e => { if (e.target === modal) close(); };
+  modal.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
 }
 
 function analyzePoint(latlng) {
