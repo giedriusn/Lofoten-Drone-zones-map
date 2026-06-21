@@ -43,7 +43,18 @@ const featuresByLayer = {}; // id -> [{feature, def}] for spot-check
 let pickMode = false;
 let pickMarker = null;
 
-init();
+// Surface a fatal init failure (e.g. config.json unreachable) instead of leaving
+// the "Loading…" overlay spinning forever. Per-data-file errors fall back to empty
+// inside init() and don't reach here.
+init().catch(err => {
+  console.error("Initialisation failed:", err);
+  const el = document.getElementById("loading");
+  if (el) {
+    el.classList.remove("done");
+    el.classList.add("error");
+    el.textContent = "Couldn't load the map data. Check your connection and reload the page.";
+  }
+});
 
 async function init() {
   config = await (await fetch("config.json")).json();

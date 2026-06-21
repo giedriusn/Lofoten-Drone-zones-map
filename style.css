@@ -294,6 +294,7 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
   padding: 14px 22px; border-radius: 12px; color: var(--muted); font-size: 14px;
 }
 .loading.done { display: none; }
+.loading.error { max-width: 280px; text-align: center; line-height: 1.5; color: #ff8aa0; border-color: rgba(255,34,56,.45); }
 
 /* ---------- Leaflet popup theming ---------- */
 .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: var(--panel); color: var(--text); border: 1px solid var(--line); }
