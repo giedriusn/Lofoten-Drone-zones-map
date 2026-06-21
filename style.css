@@ -135,6 +135,15 @@ a { color: var(--accent); }
 }
 .seg button.active { background: var(--accent); border-color: var(--accent); color: #08121d; font-weight: 600; }
 
+/* ---------- Offline ---------- */
+.offline { margin-top: 16px; }
+.offline__label { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+.offline .rulesbtn { margin-top: 8px; }
+.offline__status { margin-top: 8px; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.rulesbtn--danger { border-color: rgba(255,34,56,.55); background: rgba(255,34,56,.12); color: #ffb3c2; }
+.rulesbtn--danger:hover { border-color: #ff2238; }
+.linkbtn { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); text-decoration: underline; cursor: pointer; }
+
 /* ---------- Rules button + modal ---------- */
 .rulesbtn {
   display: block; width: 100%; margin-top: 16px; padding: 11px;

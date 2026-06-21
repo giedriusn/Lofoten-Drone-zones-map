@@ -5,6 +5,13 @@
     "center": [68.2, 14.8],
     "zoom": 7
   },
+  "offline": {
+    "_comment": "Region tiles pre-cached for offline use (Kartverket). z5–z12 ≈ 10.5k tiles / ~150 MB — the practical ceiling for iOS storage; raise maxZoom for more detail at the cost of size.",
+    "minZoom": 5,
+    "maxZoom": 12,
+    "layer": "topo",
+    "bytesPerTile": 15360
+  },
   "airports": {
     "buffer_km": 5,
     "_comment": "5 km ring only for airports with scheduled air traffic service, where the official Luftfartstilsynet '5 km + ATC permission' rule applies. Uncontrolled airstrips and heliports are shown as advisory markers.",
