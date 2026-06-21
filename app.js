@@ -5,6 +5,7 @@
 const COLORS = {
   airport: "#ff3b30",
   ctr: "#ff9500",
+  tiz: "#ffc46b",
   restricted: "#c026d3",
   danger: "#ff2d55",
   exercise: "#9a6fb0",
@@ -21,7 +22,8 @@ const COLORS = {
 // non-blocking layers are context/advisory only.
 const LAYER_DEFS = [
   { id: "airport", name: "Airport 5 km no-fly", color: COLORS.airport, on: true, file: "airports", blocking: true },
-  { id: "ctr", name: "Control & traffic zones (CTR/TIZ)", color: COLORS.ctr, on: true, file: "airspace", match: p => p.category === "ctr" || p.category === "tiz", blocking: true },
+  { id: "ctr", name: "Control zones (CTR)", color: COLORS.ctr, on: true, file: "airspace", match: p => p.category === "ctr", blocking: true },
+  { id: "tiz", name: "Traffic info zones (TIZ)", color: COLORS.tiz, on: true, file: "airspace", match: p => p.category === "tiz", dashed: true, blocking: true },
   { id: "restricted", name: "Restricted areas", color: COLORS.restricted, on: true, file: "airspace", match: p => p.category === "restricted", blocking: true },
   { id: "danger", name: "Danger areas (firing/military)", color: COLORS.danger, on: true, file: "airspace", match: p => p.category === "danger", dashed: true, blocking: true },
   { id: "exercise", name: "Military exercise areas (NOTAM)", color: COLORS.exercise, on: true, file: "airspace", match: p => p.category === "exercise", dashed: true, blocking: false },
