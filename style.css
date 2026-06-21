@@ -38,6 +38,7 @@ a { color: var(--accent); }
   width: 318px;
   max-width: calc(100vw - 28px);
   max-height: calc(100vh - 28px);
+  max-height: calc(100dvh - 28px); /* dvh excludes the mobile browser toolbar so the panel never clips */
   display: flex;
   flex-direction: column;
   background: color-mix(in srgb, var(--panel) 92%, transparent);
@@ -167,7 +168,7 @@ a { color: var(--accent); }
    delay it one transition so the fade-out still plays. */
 .modal--hidden { opacity: 0; pointer-events: none; visibility: hidden; transition: opacity .18s, visibility 0s .18s; }
 .modal__card {
-  width: 560px; max-width: 100%; max-height: calc(100vh - 40px);
+  width: 560px; max-width: 100%; max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px);
   display: flex; flex-direction: column;
   background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
   box-shadow: 0 24px 64px rgba(0,0,0,.55); overflow: hidden;
@@ -265,7 +266,7 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
   display: flex; justify-content: space-between; align-items: center;
   padding: 11px 14px; border-bottom: 1px solid var(--line);
 }
-.result__body { padding: 6px 14px 14px; max-height: 46vh; overflow-y: auto; }
+.result__body { padding: 6px 14px 14px; max-height: 46vh; max-height: 46dvh; overflow-y: auto; }
 
 .verdict { display: flex; align-items: center; gap: 9px; padding: 12px 2px; font-weight: 700; font-size: 15px; }
 .verdict.clear { color: var(--c-ok); }
@@ -285,6 +286,29 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
 .nearest strong { color: #ffcf7a; }
 .hit__rule.wildlife { margin-top: 8px; padding: 8px 10px; background: rgba(52,199,89,.08); border: 1px solid rgba(52,199,89,.25); border-radius: 8px; color: #b9f0c6; }
 .coords { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+/* ---------- Pick-mode hint ---------- */
+.pickhint {
+  position: absolute; z-index: 1100;
+  top: calc(14px + env(safe-area-inset-top));
+  left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px;
+  max-width: calc(100vw - 28px);
+  padding: 9px 9px 9px 14px;
+  background: color-mix(in srgb, var(--accent) 92%, #000);
+  color: #08121d; font-size: 13px; font-weight: 600;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  transition: opacity .18s, transform .18s, visibility 0s;
+}
+.pickhint__txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pickhint__cancel {
+  flex: none; border: 0; cursor: pointer;
+  background: rgba(8, 18, 29, 0.18);
+  color: #08121d; font: inherit;
+  min-height: 38px; padding: 8px 16px; border-radius: 999px;
+}
+.pickhint--hidden { opacity: 0; pointer-events: none; visibility: hidden; transform: translateX(-50%) translateY(-8px); transition: opacity .18s, transform .18s, visibility 0s .18s; }
 
 /* Helipad marker badge */
 .helipad-icon span {
@@ -317,6 +341,40 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
 
 /* ---------- Mobile ---------- */
 @media (max-width: 640px) {
-  .panel { top: 10px; left: 10px; right: 10px; width: auto; }
-  .result { left: 10px; right: 10px; bottom: 10px; width: auto; }
+  /* Full-width panels, kept clear of the notch / home indicator (PWA standalone). */
+  .panel {
+    top: calc(10px + env(safe-area-inset-top));
+    left: calc(10px + env(safe-area-inset-left));
+    right: calc(10px + env(safe-area-inset-right));
+    width: auto;
+  }
+  .result {
+    left: calc(10px + env(safe-area-inset-left));
+    right: calc(10px + env(safe-area-inset-right));
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    width: auto;
+  }
+
+  /* Below the collapsed panel header (top 10px + header ~53px ≈ 63px), with margin.
+     The header is fixed-content, so this clears it; revisit if the title grows a line. */
+  .pickhint { top: calc(78px + env(safe-area-inset-top)); }
+
+  /* Leaflet's zoom control defaults to the top-left, directly under the panel —
+     drop it below the collapsed header (same ~63px derivation) and clear of the
+     notch, and grow the buttons to a comfortable touch size. */
+  .leaflet-top.leaflet-left { margin-top: calc(80px + env(safe-area-inset-top)); }
+  .leaflet-left { margin-left: env(safe-area-inset-left); }
+  .leaflet-right { margin-right: env(safe-area-inset-right); }
+  .leaflet-bottom { margin-bottom: env(safe-area-inset-bottom); }
+  /* Equal specificity to Leaflet's `.leaflet-touch .leaflet-bar a`; this wins by
+     load order (style.css is linked after leaflet.css). The bare selector covers
+     non-touch builds. */
+  .leaflet-touch .leaflet-control-zoom a,
+  .leaflet-control-zoom a { width: 40px; height: 40px; line-height: 40px; font-size: 22px; }
+
+  /* Touch tap targets — bring everything up to the ~44px minimum. */
+  .iconbtn { width: 44px; height: 44px; font-size: 18px; }
+  .layer { padding: 14px 10px; }
+  .seg button { padding: 12px 8px; }
+  .rulesbtn { min-height: 44px; padding: 13px; }
 }

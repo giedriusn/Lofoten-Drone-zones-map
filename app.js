@@ -296,27 +296,69 @@ function buildLayerUI() {
 /* ---------------- Spot check ---------------- */
 
 function wireControls() {
+  const panel = document.getElementById("panel");
+  const panelToggle = document.getElementById("panelToggle");
   const checkBtn = document.getElementById("checkBtn");
-  checkBtn.onclick = () => {
-    pickMode = !pickMode;
-    checkBtn.classList.toggle("active", pickMode);
-    map.getContainer().style.cursor = pickMode ? "crosshair" : "";
-  };
+  const pickHint = document.getElementById("pickHint");
+  // Re-checked at each interaction rather than via a resize listener: a real phone
+  // never crosses this breakpoint mid-session, and re-running the initial collapse on
+  // resize would fight a user who deliberately expanded/collapsed the panel.
+  const isMobile = () => window.matchMedia("(max-width: 640px)").matches;
+
+  // The hint stands in for the (hidden) armed check button whenever the panel is
+  // collapsed — on phones that's the only cue that the next map tap is a query.
+  const updatePickHint = () =>
+    pickHint.classList.toggle("pickhint--hidden", !(pickMode && panel.classList.contains("collapsed")));
+
+  function setCollapsed(collapsed) {
+    panel.classList.toggle("collapsed", collapsed);
+    panelToggle.textContent = collapsed ? "+" : "–";
+    const label = collapsed ? "Show controls" : "Collapse panel";
+    panelToggle.setAttribute("aria-label", label);
+    panelToggle.title = label;
+    updatePickHint();
+  }
+  panelToggle.onclick = () => setCollapsed(!panel.classList.contains("collapsed"));
+
+  function setPick(on) {
+    pickMode = on;
+    checkBtn.classList.toggle("active", on);
+    map.getContainer().style.cursor = on ? "crosshair" : "";
+    // On phones the expanded panel covers the whole map, so arming "Can I fly here?"
+    // must also get the panel out of the way — otherwise there is nothing to tap.
+    if (on && isMobile()) setCollapsed(true);
+    else updatePickHint();
+  }
+  checkBtn.onclick = () => setPick(!pickMode);
+  document.getElementById("pickHintCancel").onclick = () => setPick(false);
+
+  // "Click" is a desktop verb; touch devices tap.
+  if (window.matchMedia("(pointer: coarse)").matches) {
+    const em = checkBtn.querySelector("em");
+    if (em) em.textContent = "Tap the map";
+  }
 
   // Only analyse when the user has explicitly armed "Can I fly here?" — otherwise
   // a click is just panning/exploring and must NOT produce an unsolicited verdict.
   map.on("click", e => { if (pickMode) analyzePoint(e.latlng); });
+
+  // A click that lands on a zone/marker opens that feature's popup and never reaches
+  // the map-level handler above — so on a zone-dense map the verdict would only ever
+  // fire over empty water. While armed, suppress the popup and analyse its point instead.
+  map.on("popupopen", e => {
+    if (!pickMode) return;
+    const latlng = e.popup.getLatLng();
+    map.closePopup(e.popup);
+    analyzePoint(latlng);
+  });
 
   document.getElementById("resultClose").onclick = () => {
     document.getElementById("result").classList.add("result--hidden");
     if (pickMarker) { map.removeLayer(pickMarker); pickMarker = null; }
   };
 
-  const panel = document.getElementById("panel");
-  document.getElementById("panelToggle").onclick = () => {
-    panel.classList.toggle("collapsed");
-    document.getElementById("panelToggle").textContent = panel.classList.contains("collapsed") ? "+" : "–";
-  };
+  // Start collapsed on phones so the map — not a wall of controls — is what loads.
+  if (isMobile()) setCollapsed(true);
 
   // Modals (rules + glossary) share focus/inert handling for keyboard & AT users.
   wireModal("rulesBtn", "rulesModal", "rulesClose");
@@ -329,7 +371,7 @@ function wireModal(btnId, modalId, closeId) {
   const modal = document.getElementById(modalId);
   const btn = document.getElementById(btnId);
   const closeBtn = document.getElementById(closeId);
-  const bg = ["panel", "result", "map"].map(id => document.getElementById(id)).filter(Boolean);
+  const bg = ["panel", "result", "map", "pickHint"].map(id => document.getElementById(id)).filter(Boolean);
   const open = () => { bg.forEach(el => el.setAttribute("inert", "")); modal.classList.remove("modal--hidden"); closeBtn.focus(); };
   const close = () => { modal.classList.add("modal--hidden"); bg.forEach(el => el.removeAttribute("inert")); btn.focus(); };
   btn.onclick = open;

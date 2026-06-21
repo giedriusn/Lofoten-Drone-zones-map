@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Drone Zones — Lofoten · Bodø · Narvik</title>
   <link rel="stylesheet" href="vendor/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
@@ -71,6 +71,13 @@
       <button id="resultClose" class="iconbtn" aria-label="Close">✕</button>
     </div>
     <div id="resultBody" class="result__body" role="status" aria-live="polite"></div>
+  </div>
+
+  <!-- Pick-mode hint — stands in for the armed check button while the panel is
+       collapsed (on phones the button is hidden, so this is the only "you're checking" cue). -->
+  <div id="pickHint" class="pickhint pickhint--hidden" role="status" aria-live="polite">
+    <span class="pickhint__txt">📍 Tap the map to check a spot</span>
+    <button id="pickHintCancel" class="pickhint__cancel" type="button">Cancel</button>
   </div>
 
   <!-- Sub-250 g rules reference -->
