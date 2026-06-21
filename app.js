@@ -219,7 +219,7 @@ function popupHtml(f, def) {
   let type = def.name, extra = "";
   if (def.file === "airspace") {
     type = p.label;
-    if (isFinite(p.floor_m)) extra += `<div class="pp-rule">Floor: ${p.floor_m} m · Ceiling: ${fmtCeil(p.ceil_m)}</div>`;
+    if (Number.isFinite(p.floor_m)) extra += `<div class="pp-rule">Floor: ${p.floor_m} m · Ceiling: ${fmtCeil(p.ceil_m)}</div>`;
   } else if (def.file === "nature") {
     type = p.verneform || "Protected area";
     if (p.municipality) extra += `<div class="pp-rule">${p.municipality}${p.protected_since ? " · since " + p.protected_since : ""}</div>`;
@@ -242,7 +242,7 @@ function popupHtml(f, def) {
 }
 
 function fmtCeil(m) {
-  if (!isFinite(m)) return "—";
+  if (!Number.isFinite(m)) return "—";
   return m >= 18000 ? "unlimited" : `${m} m`;
 }
 
@@ -356,7 +356,7 @@ function renderResult(latlng, hits, nearest) {
     let type = h.def.file === "airspace" ? h.p.label : h.def.file === "nature" ? (h.p.verneform || "Protected area") : h.def.name;
     if (h.def.id === "airport") type = h.p.buffer_km > 0 ? "Airport · 5 km zone" : type;
     const reg = h.p.regulation ? ` <a href="${esc(safeUrl(h.p.regulation))}" target="_blank" rel="noopener">regulation ↗</a>` : "";
-    const alt = h.def.file === "airspace" && isFinite(h.p.floor_m) ? ` (floor ${h.p.floor_m} m)` : "";
+    const alt = h.def.file === "airspace" && Number.isFinite(h.p.floor_m) ? ` (floor ${h.p.floor_m} m)` : "";
     return `<div class="hit">
       <div class="hit__top"><span class="hit__chip" style="background:${color}"></span>
         <span class="hit__name">${esc(h.p.name || type)}</span></div>
@@ -369,7 +369,7 @@ function renderResult(latlng, hits, nearest) {
 
   // Only show the margin-to-nearest readout when the point is otherwise clear.
   const nearestHtml = (!blocking.length && nearest)
-    ? `<div class="nearest">Nearest no-fly: <strong>${esc(nearest.p.name || nearest.def.name)}</strong> — ${fmtDist(nearest.distM)} ${nearest.bearing}</div>`
+    ? `<div class="nearest">Nearest restriction: <strong>${esc(nearest.p.name || nearest.def.name)}</strong> — ${fmtDist(nearest.distM)} ${nearest.bearing}</div>`
     : "";
 
   const clearNote = !blocking.length

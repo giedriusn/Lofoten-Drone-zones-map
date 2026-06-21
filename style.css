@@ -7,6 +7,7 @@
   --muted: #93a4b8;
   --accent: #4ea1ff;
 
+  --c-ok: #34c759;
   --c-airport: #ff9f0a;
   --c-ctr: #ff9500;
   --c-tiz: #ffc46b;
@@ -254,7 +255,7 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
 .result__body { padding: 6px 14px 14px; max-height: 46vh; overflow-y: auto; }
 
 .verdict { display: flex; align-items: center; gap: 9px; padding: 12px 2px; font-weight: 700; font-size: 15px; }
-.verdict.clear { color: var(--c-reserve); }
+.verdict.clear { color: var(--c-ok); }
 .verdict.blocked { color: var(--c-danger); }
 .verdict__dot { width: 12px; height: 12px; border-radius: 50%; background: currentColor; box-shadow: 0 0 12px currentColor; }
 
