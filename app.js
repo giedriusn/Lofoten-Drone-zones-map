@@ -340,7 +340,9 @@ function wireControls() {
   }
   checkBtn.onclick = () => setPick(!pickMode);
   document.getElementById("pickHintCancel").onclick = () => setPick(false);
-  document.getElementById("locateBtn").onclick = locateMe;
+  // Locating is a complete action — disarm "Can I fly here?" so the map isn't left
+  // armed (crosshair + hint) after the verdict appears.
+  document.getElementById("locateBtn").onclick = () => { setPick(false); locateMe(); };
 
   // "Click" is a desktop verb; touch devices tap.
   if (window.matchMedia("(pointer: coarse)").matches) {
@@ -426,37 +428,46 @@ function analyzePoint(latlng) {
 // there is no backend, and nothing here writes to storage or the network.
 function locateMe() {
   const btn = document.getElementById("locateBtn");
+  // Always clears the spinner so the button can never get stuck disabled.
+  const fail = msg => {
+    btn.classList.remove("locating");
+    showResultMessage(`<div class="verdict permission"><span class="verdict__dot"></span>Couldn't get your location</div>
+      <div class="hit__rule">${esc(msg)}</div>`);
+  };
   if (!navigator.geolocation) {
-    showResultMessage(`<div class="verdict permission"><span class="verdict__dot"></span>This device can't share its location</div>
-      <div class="hit__rule">Tap "Can I fly here?" and pick a spot on the map instead.</div>`);
+    fail(`This device can't share its location. Tap "Can I fly here?" and pick a spot on the map instead.`);
     return;
   }
   btn.classList.add("locating");
-  navigator.geolocation.getCurrentPosition(
-    pos => {
-      btn.classList.remove("locating");
-      const { latitude, longitude, accuracy } = pos.coords;
-      const latlng = L.latLng(latitude, longitude);
-      map.setView(latlng, Math.max(map.getZoom(), 13));
-      analyzePoint(latlng); // drops the marker + renders the verdict (and clears any stale ring)
-      accuracyCircle = L.circle(latlng, {
-        radius: accuracy, color: "#4ea1ff", weight: 1, fillColor: "#4ea1ff", fillOpacity: 0.1,
-      }).addTo(map);
-      document.getElementById("resultBody").insertAdjacentHTML("beforeend",
-        `<div class="coords">📍 From your device's GPS (±${Math.round(accuracy)} m) — your location stays on your device, never sent anywhere.</div>`);
-    },
-    err => {
-      btn.classList.remove("locating");
-      const msg = err.code === err.PERMISSION_DENIED
-        ? "Location permission is off. Allow it in your browser settings, or tap the map to pick a spot."
-        : err.code === err.TIMEOUT
-        ? "Location is taking too long — try again outdoors, or tap the map to pick a spot."
-        : "Couldn't get a location fix — try again outdoors, or tap the map to pick a spot.";
-      showResultMessage(`<div class="verdict permission"><span class="verdict__dot"></span>Couldn't get your location</div>
-        <div class="hit__rule">${esc(msg)}</div>`);
-    },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-  );
+  try {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        btn.classList.remove("locating");
+        const { latitude, longitude, accuracy } = pos.coords;
+        const latlng = L.latLng(latitude, longitude);
+        map.setView(latlng, Math.max(map.getZoom(), 13));
+        analyzePoint(latlng); // drops the marker + renders the verdict (and clears any stale ring)
+        accuracyCircle = L.circle(latlng, {
+          radius: accuracy, color: "#4ea1ff", weight: 1, fillColor: "#4ea1ff", fillOpacity: 0.1,
+        }).addTo(map);
+        // Honest note: the coordinates never leave the page, but map tiles for this area
+        // are still fetched from the basemap provider (none if Norway is saved offline).
+        document.getElementById("resultBody").insertAdjacentHTML("beforeend",
+          `<div class="hit__rule">📍 GPS fix, ±${Math.round(accuracy)} m. Your coordinates aren't uploaded or saved — map tiles for this area still load from the map provider, unless you've saved the Norway map offline.</div>`);
+      },
+      err => fail(
+        err.code === err.PERMISSION_DENIED
+          ? "Location permission is off. Allow it in your browser settings, or tap the map to pick a spot."
+          : err.code === err.TIMEOUT
+          ? "Location is taking too long — try again outdoors, or tap the map to pick a spot."
+          : "Couldn't get a location fix — try again outdoors, or tap the map to pick a spot."
+      ),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  } catch {
+    // Some engines throw synchronously when geolocation is blocked by permissions policy.
+    fail("Couldn't access location on this device. Tap the map to pick a spot instead.");
+  }
 }
 
 // Show a one-off message (e.g. a geolocation error) in the result panel, clearing

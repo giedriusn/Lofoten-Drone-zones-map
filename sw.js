@@ -1,5 +1,5 @@
 /* Service worker — offline app shell + map tiles. Classic worker for iOS support. */
-const SHELL_CACHE = "drone-shell-v4";
+const SHELL_CACHE = "drone-shell-v5";
 const TILE_CACHE = "drone-tiles-v1"; // NOT version-bumped: tiles are large & stable.
 
 const SHELL_ASSETS = [

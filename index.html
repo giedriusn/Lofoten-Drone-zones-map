@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <!-- Don't leak the page URL (or a located position's referrer) to tile CDNs / outbound links. -->
+  <meta name="referrer" content="no-referrer" />
   <title>Drone Zones — Lofoten · Bodø · Narvik</title>
   <link rel="stylesheet" href="vendor/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
@@ -21,8 +23,8 @@
   <!-- Locate me: one-shot GPS → centre the map and run the spot check for where
        you're standing. Coordinates are used in place, never stored or sent. -->
   <button id="locateBtn" class="locatebtn" type="button"
-          aria-label="Show my location and check this spot — your location stays on your device"
-          title="Where am I? (your location stays on your device)">📍</button>
+          aria-label="Show my location and check whether you can fly where you're standing"
+          title="Where am I? (your coordinates aren't uploaded or saved)">📍</button>
 
   <!-- Control panel -->
   <aside id="panel" class="panel">
