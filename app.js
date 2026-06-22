@@ -29,7 +29,7 @@ const COLORS = {
 const LAYER_DEFS = [
   { id: "airport", name: "Airport 5 km zone", color: COLORS.airport, on: true, file: "airports", blocking: true, severity: "permission" },
   { id: "ctr", name: "Control zones (CTR)", color: COLORS.ctr, on: true, file: "airspace", match: p => p.category === "ctr", blocking: true, severity: "permission" },
-  { id: "tiz", name: "Traffic info zones (TIZ)", color: COLORS.tiz, on: true, file: "airspace", match: p => p.category === "tiz", dashed: true, blocking: true, severity: "permission", stroke: "#a85d00", weight: 2 },
+  { id: "tiz", name: "Traffic info zones (TIZ)", color: COLORS.tiz, on: true, file: "airspace", match: p => p.category === "tiz", dashed: true, blocking: true, severity: "permission", stroke: "#9a5200", weight: 3 },
   { id: "restricted", name: "Restricted areas", color: COLORS.restricted, on: true, file: "airspace", match: p => p.category === "restricted", blocking: true, severity: "nofly" },
   { id: "danger", name: "Danger areas (firing/military)", color: COLORS.danger, on: true, file: "airspace", match: p => p.category === "danger", dashed: true, blocking: true, severity: "nofly" },
   { id: "exercise", name: "Military exercise areas (NOTAM)", color: COLORS.exercise, on: true, file: "airspace", match: p => p.category === "exercise", dashed: true, blocking: false, severity: "conditional" },
@@ -252,7 +252,7 @@ function styleFor(def, p) {
   return {
     color: def.stroke || fill, fillColor: fill,
     weight: def.weight ?? (noFly ? 2.2 : def.id === "tiz" ? 1 : 1.5),
-    fillOpacity: def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.14
+    fillOpacity: def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.22
       : def.id === "populated" ? 0.18 : noFly ? 0.24 : 0.16,
     dashArray: def.dashed ? "6 4" : null,
   };
