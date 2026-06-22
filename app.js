@@ -29,7 +29,7 @@ const COLORS = {
 const LAYER_DEFS = [
   { id: "airport", name: "Airport 5 km zone", color: COLORS.airport, on: true, file: "airports", blocking: true, severity: "permission" },
   { id: "ctr", name: "Control zones (CTR)", color: COLORS.ctr, on: true, file: "airspace", match: p => p.category === "ctr", blocking: true, severity: "permission" },
-  { id: "tiz", name: "Traffic info zones (TIZ)", color: COLORS.tiz, on: true, file: "airspace", match: p => p.category === "tiz", dashed: true, blocking: true, severity: "permission", stroke: "#9a5200", weight: 3 },
+  { id: "tiz", name: "Traffic info zones (TIZ)", color: COLORS.tiz, on: true, file: "airspace", match: p => p.category === "tiz", dashed: true, blocking: true, severity: "permission", stroke: "#e07b00", weight: 2 },
   { id: "restricted", name: "Restricted areas", color: COLORS.restricted, on: true, file: "airspace", match: p => p.category === "restricted", blocking: true, severity: "nofly" },
   { id: "danger", name: "Danger areas (firing/military)", color: COLORS.danger, on: true, file: "airspace", match: p => p.category === "danger", dashed: true, blocking: true, severity: "nofly" },
   { id: "exercise", name: "Military exercise areas (NOTAM)", color: COLORS.exercise, on: true, file: "airspace", match: p => p.category === "exercise", dashed: true, blocking: false, severity: "conditional" },
@@ -46,6 +46,10 @@ const featuresByLayer = {}; // id -> [{feature, def}] for spot-check
 let pickMode = false;
 let pickMarker = null;
 let accuracyCircle = null; // GPS accuracy ring for the "locate me" feature
+// Monotonic token for in-flight "locate me" requests. A GPS fix can take several
+// seconds; if the user pans or picks a spot meanwhile, bumping this abandons the
+// pending fix so its late callback can't hijack the view/verdict they moved on to.
+let locateSeq = 0;
 
 // Surface a fatal init failure (e.g. config.json unreachable) instead of leaving
 // the "Loading…" overlay spinning forever. Per-data-file errors fall back to empty
@@ -252,7 +256,7 @@ function styleFor(def, p) {
   return {
     color: def.stroke || fill, fillColor: fill,
     weight: def.weight ?? (noFly ? 2.2 : def.id === "tiz" ? 1 : 1.5),
-    fillOpacity: def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.22
+    fillOpacity: def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.15
       : def.id === "populated" ? 0.18 : noFly ? 0.24 : 0.16,
     dashArray: def.dashed ? "6 4" : null,
   };
@@ -361,17 +365,22 @@ function wireControls() {
 
   // Only analyse when the user has explicitly armed "Can I fly here?" — otherwise
   // a click is just panning/exploring and must NOT produce an unsolicited verdict.
-  map.on("click", e => { if (pickMode) analyzePoint(e.latlng); });
+  map.on("click", e => { if (pickMode) { locateSeq++; analyzePoint(e.latlng); } });
 
   // A click that lands on a zone/marker opens that feature's popup and never reaches
   // the map-level handler above — so on a zone-dense map the verdict would only ever
   // fire over empty water. While armed, suppress the popup and analyse its point instead.
   map.on("popupopen", e => {
     if (!pickMode) return;
+    locateSeq++;
     const latlng = e.popup.getLatLng();
     map.closePopup(e.popup);
     analyzePoint(latlng);
   });
+
+  // A deliberate pan abandons any pending "locate me" too — fires only on user drag,
+  // not on the programmatic setView that locating itself performs.
+  map.on("dragstart", () => { locateSeq++; });
 
   document.getElementById("resultClose").onclick = () => {
     document.getElementById("result").classList.add("result--hidden");
@@ -448,16 +457,23 @@ function locateMe() {
     return;
   }
   btn.classList.add("locating");
+  // Claim this request. Any user pan/pick before the fix lands bumps locateSeq, after
+  // which this fix is stale and must not touch the map. The button is inert while
+  // locating, so a second locate can't race us — only a map interaction invalidates.
+  const myToken = ++locateSeq;
   try {
     navigator.geolocation.getCurrentPosition(
       pos => {
         btn.classList.remove("locating");
+        // Stale fix: the user panned or picked a spot while we waited. Honour their
+        // current view/verdict instead of yanking the map back to where they were.
+        if (myToken !== locateSeq) return;
         const { latitude, longitude, accuracy } = pos.coords;
         const latlng = L.latLng(latitude, longitude);
-        // Coverage guard: this app only has zone data for the mapped region. Outside it,
-        // analyzePoint() would find nothing and render a falsely reassuring "clear" verdict
-        // (no data ≠ no restriction), and setView clamps to maxBounds so the marker would
-        // sit off-screen anyway. Refuse a verdict for the out-of-region case and say why.
+        // Coverage guard: keep verdicts inside the region the app is built for. The
+        // curated layers (nature, populated, airports, helipads) and the basemap focus
+        // only cover it, and setView clamps to maxBounds so an out-of-region marker would
+        // sit off-screen. Refuse a verdict for the out-of-region case and say why.
         if (map.options.maxBounds && !map.options.maxBounds.contains(latlng)) {
           showResultMessage(`<div class="verdict permission"><span class="verdict__dot"></span>You're outside the mapped area</div>
             <div class="hit__rule">${esc(`This map only covers ${config.region.name}, so it can't give a verdict for where you are (±${Math.round(accuracy)} m from GPS). Wherever you fly, the standard rules still apply: max 120 m above the surface, keep clear of people, and check NOTAMs.`)}</div>`);
@@ -467,19 +483,25 @@ function locateMe() {
         analyzePoint(latlng); // drops the marker + renders the verdict (and clears any stale ring)
         accuracyCircle = L.circle(latlng, {
           radius: accuracy, color: "#4ea1ff", weight: 1, fillColor: "#4ea1ff", fillOpacity: 0.1,
+          interactive: false, // a purely visual ring — don't let it swallow clicks on zones beneath it
         }).addTo(map);
         // Honest note: the coordinates never leave the page, but map tiles for this area
         // are still fetched from the basemap provider (none if Norway is saved offline).
         document.getElementById("resultBody").insertAdjacentHTML("beforeend",
           `<div class="hit__rule">📍 GPS fix, ±${Math.round(accuracy)} m. Your coordinates aren't uploaded or saved — map tiles for this area still load from the map provider, unless you've saved the Norway map offline.</div>`);
       },
-      err => fail(
-        err.code === err.PERMISSION_DENIED
-          ? "Location permission is off. Allow it in your browser settings, or tap the map to pick a spot."
-          : err.code === err.TIMEOUT
-          ? "Location is taking too long — try again outdoors, or tap the map to pick a spot."
-          : "Couldn't get a location fix — try again outdoors, or tap the map to pick a spot."
-      ),
+      err => {
+        // Stale error: the user moved on while we waited — clear the spinner but don't
+        // overwrite their current verdict with a "couldn't locate" message.
+        if (myToken !== locateSeq) { btn.classList.remove("locating"); return; }
+        fail(
+          err.code === err.PERMISSION_DENIED
+            ? "Location permission is off. Allow it in your browser settings, or tap the map to pick a spot."
+            : err.code === err.TIMEOUT
+            ? "Location is taking too long — try again outdoors, or tap the map to pick a spot."
+            : "Couldn't get a location fix — try again outdoors, or tap the map to pick a spot."
+        );
+      },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   } catch {
