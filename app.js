@@ -378,8 +378,10 @@ function wireControls() {
     analyzePoint(latlng);
   });
 
-  // A deliberate pan abandons any pending "locate me" too — fires only on user drag,
-  // not on the programmatic setView that locating itself performs.
+  // A deliberate drag abandons any pending "locate me" too. `dragstart` fires only on a
+  // pointer drag — not on the programmatic setView that locating itself performs (so it
+  // won't self-invalidate), and not on zoom/keyboard-pan, which usually mean "show me this
+  // fix better" and are fine to let the incoming fix recentre.
   map.on("dragstart", () => { locateSeq++; });
 
   document.getElementById("resultClose").onclick = () => {
