@@ -387,6 +387,11 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
      sit ~10px under that. Revisit if the title grows a line. */
   .pickhint { top: calc(92px + env(safe-area-inset-top)); }
 
+  /* The panel is full-width here, so at the default top:14px the locate button hides
+     behind the panel header. Drop it below the collapsed header (mirrors the zoom
+     control on the left) so it's visible and tappable on the map. */
+  .locatebtn { top: calc(94px + env(safe-area-inset-top)); }
+
   /* Leaflet's zoom control defaults to the top-left, directly under the panel —
      drop it below the collapsed header (~81px bottom, same derivation as .pickhint)
      and clear of the notch, and grow the buttons to a comfortable touch size. */
