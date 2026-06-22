@@ -152,8 +152,9 @@ button that pre-downloads the region's tiles into a durable cache.
 3. Open the installed app (still online — this first launch is when the service
    worker installs and caches the app shell), tap **⬇ Save map for offline
    (Norway)**, and wait for it to finish.
-4. Go fly. With no signal: open the app, switch to the **Norway** basemap, and the
-   map + every zone work straight from the cache.
+4. Go fly. With no signal the app **starts on the Norway basemap automatically** (and
+   remembers your last-used basemap between sessions), so the map + every zone work
+   straight from the cache.
 
 **Coverage / size:** the download covers the whole region at zoom 5–12 (~10,500
 tiles, ~150 MB) — the practical ceiling for iPhone storage. Tune `config.json` →

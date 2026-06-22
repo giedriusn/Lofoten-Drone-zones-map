@@ -108,9 +108,16 @@ function setupBasemaps() {
     }),
   };
   const DEFAULT = "Map";
+  // Restore the last-used basemap. Offline, force "Norway" (Kartverket) — it's the only
+  // basemap whose tiles can be cached, so the online ones would render blank in the field.
+  let saved = null;
+  try { saved = localStorage.getItem("drone-basemap"); } catch {}
+  let initial = saved && bases[saved] ? saved : DEFAULT;
+  if (!navigator.onLine && bases.Norway) initial = "Norway";
+
   const seg = document.getElementById("basemaps");
   const buttons = {};
-  let current = bases[DEFAULT];
+  let current = bases[initial];
   current.addTo(map);
 
   function switchTo(label) {
@@ -121,12 +128,13 @@ function setupBasemaps() {
     current = layer;
     Object.values(buttons).forEach(c => c.classList.remove("active"));
     buttons[label].classList.add("active");
+    try { localStorage.setItem("drone-basemap", label); } catch {} // remember across reloads
   }
 
   Object.keys(bases).forEach(label => {
     const b = document.createElement("button");
     b.textContent = label;
-    if (label === DEFAULT) b.classList.add("active");
+    if (label === initial) b.classList.add("active");
     b.onclick = () => switchTo(label);
     seg.appendChild(b);
     buttons[label] = b;
