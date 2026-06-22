@@ -9,7 +9,7 @@ const COLORS = {
   // Severity palette: RED = strict no-fly · ORANGE = need permission · others = caution/context
   airport: "#ff9f0a",     // need permission → orange
   ctr: "#ff9500",         // need permission → orange
-  tiz: "#ffc46b",         // need permission → light orange
+  tiz: "#ffb02e",         // need permission → amber/gold (distinct from the orange CTR, readable on the light basemap)
   restricted: "#ff2238",  // strict no-fly → red
   danger: "#ff2238",      // strict no-fly → red
   reserve: "#ff2238",     // nature reserve = strict no-fly → red
@@ -29,7 +29,7 @@ const COLORS = {
 const LAYER_DEFS = [
   { id: "airport", name: "Airport 5 km zone", color: COLORS.airport, on: true, file: "airports", blocking: true, severity: "permission" },
   { id: "ctr", name: "Control zones (CTR)", color: COLORS.ctr, on: true, file: "airspace", match: p => p.category === "ctr", blocking: true, severity: "permission" },
-  { id: "tiz", name: "Traffic info zones (TIZ)", color: COLORS.tiz, on: true, file: "airspace", match: p => p.category === "tiz", dashed: true, blocking: true, severity: "permission" },
+  { id: "tiz", name: "Traffic info zones (TIZ)", color: COLORS.tiz, on: true, file: "airspace", match: p => p.category === "tiz", dashed: true, blocking: true, severity: "permission", stroke: "#a85d00", weight: 2 },
   { id: "restricted", name: "Restricted areas", color: COLORS.restricted, on: true, file: "airspace", match: p => p.category === "restricted", blocking: true, severity: "nofly" },
   { id: "danger", name: "Danger areas (firing/military)", color: COLORS.danger, on: true, file: "airspace", match: p => p.category === "danger", dashed: true, blocking: true, severity: "nofly" },
   { id: "exercise", name: "Military exercise areas (NOTAM)", color: COLORS.exercise, on: true, file: "airspace", match: p => p.category === "exercise", dashed: true, blocking: false, severity: "conditional" },
@@ -243,15 +243,16 @@ function styleFor(def, p) {
   const fill = colorFor(def, p);
   // Strict no-fly zones (severity "nofly": restricted / danger / nature) are drawn
   // bolder & more opaque so the red reads unmistakably. TIZ are large Class-G advisory
-  // zones (coordinate with AFIS, not a hard clearance) — rendered lighter/thinner so a
-  // ~30 km zone doesn't shout as loudly as a 5 km hard ring. A def may set `stroke`
+  // zones (coordinate with AFIS, not a hard clearance) — given a lighter fill but a dark
+  // amber edge for definition, so a ~30 km zone reads clearly without shouting like a 5 km
+  // hard ring. A def may set `stroke`
   // (a darker outline than its fill) and/or `weight`: pale-yellow zones wash out on the
   // light basemap, so they get a dark amber edge drawn a little heavier.
   const noFly = def.severity === "nofly";
   return {
     color: def.stroke || fill, fillColor: fill,
     weight: def.weight ?? (noFly ? 2.2 : def.id === "tiz" ? 1 : 1.5),
-    fillOpacity: def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.08
+    fillOpacity: def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.14
       : def.id === "populated" ? 0.18 : noFly ? 0.24 : 0.16,
     dashArray: def.dashed ? "6 4" : null,
   };
