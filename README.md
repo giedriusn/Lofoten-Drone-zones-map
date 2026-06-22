@@ -116,6 +116,7 @@ distance, and source URLs live in `config.json`.
 
 ```
 index.html / app.js / style.css   the map (Leaflet, no framework, no build)
+geometry.mjs                       pure point-in-zone / nearest-boundary math (no DOM, unit-tested)
 tiles.mjs / offline.mjs            offline PWA: tile math + Kartverket basemap + region download
 sw.js / manifest.webmanifest       service worker + manifest (installable, fully offline)
 icons/                             PWA / home-screen icons
@@ -123,12 +124,14 @@ vendor/                            Leaflet 1.9.4, vendored for offline use
 data/*.geojson                     generated restriction layers
 scripts/build-data.mjs             the data pipeline (fetch → clip → normalize)
 scripts/tiles.test.mjs             unit tests for the tile math (node --test)
+scripts/geometry.test.mjs          unit tests for the no-fly geometry (node --test)
 scripts/offline-assets.test.mjs    invariants: shell assets exist, cache name in sync
 config.json                        region bbox, airport rules, offline zoom range, source URLs
 ```
 
-Run the unit tests (tile math + offline-asset invariants) with `node --test`
-(no deps, Node 18+).
+Run the unit tests (tile math, no-fly geometry, offline-asset invariants) with
+`node --test` (no deps, Node 18+). They also run automatically on every push via
+GitHub Actions (`.github/workflows/test.yml`).
 
 ## Offline use on iPhone (phase 2)
 
@@ -160,13 +163,14 @@ size/usage figures shown in-app are approximate, and iOS may evict cached data
 after long disuse — just re-tap **Save map for offline** if the basemap looks
 empty after weeks unused.
 
-The other basemaps (OpenStreetMap, OpenTopoMap, satellite) remain for online use;
-tiles you view online are cached opportunistically, but only **Norway** is
-bulk-downloadable for guaranteed offline coverage.
+The other basemaps (OpenStreetMap, OpenTopoMap, satellite) are for **online use
+only** — to keep the cache bounded they are no longer stored as you browse, so
+only **Norway** (Kartverket) works offline, and it's the one you bulk-download for
+guaranteed coverage.
 
 **Updating a deployed copy:** restriction data (`data/*.geojson`) and `config.json`
 are served *network-first*, so corrections reach installed users automatically the
 next time they open the app online. The app *shell* (HTML/JS/CSS) is cached for
 instant offline loads — when you change shell code, bump `SHELL_CACHE` in `sw.js`
-(e.g. `drone-shell-v2`) so the service worker re-caches it. The tile cache is never
+(e.g. `drone-shell-v3`) so the service worker re-caches it. The tile cache is never
 auto-purged, so a release never forces users to re-download the ~150 MB of tiles.
