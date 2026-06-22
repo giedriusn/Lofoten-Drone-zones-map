@@ -45,6 +45,7 @@ const groups = {};          // id -> L.layerGroup
 const featuresByLayer = {}; // id -> [{feature, def}] for spot-check
 let pickMode = false;
 let pickMarker = null;
+let accuracyCircle = null; // GPS accuracy ring for the "locate me" feature
 
 // Surface a fatal init failure (e.g. config.json unreachable) instead of leaving
 // the "Loading…" overlay spinning forever. Per-data-file errors fall back to empty
@@ -339,6 +340,7 @@ function wireControls() {
   }
   checkBtn.onclick = () => setPick(!pickMode);
   document.getElementById("pickHintCancel").onclick = () => setPick(false);
+  document.getElementById("locateBtn").onclick = locateMe;
 
   // "Click" is a desktop verb; touch devices tap.
   if (window.matchMedia("(pointer: coarse)").matches) {
@@ -363,6 +365,7 @@ function wireControls() {
   document.getElementById("resultClose").onclick = () => {
     document.getElementById("result").classList.add("result--hidden");
     if (pickMarker) { map.removeLayer(pickMarker); pickMarker = null; }
+    if (accuracyCircle) { map.removeLayer(accuracyCircle); accuracyCircle = null; }
   };
 
   // Start collapsed on phones so the map — not a wall of controls — is what loads.
@@ -379,7 +382,7 @@ function wireModal(btnId, modalId, closeId) {
   const modal = document.getElementById(modalId);
   const btn = document.getElementById(btnId);
   const closeBtn = document.getElementById(closeId);
-  const bg = ["panel", "result", "map", "pickHint"].map(id => document.getElementById(id)).filter(Boolean);
+  const bg = ["panel", "result", "map", "pickHint", "locateBtn"].map(id => document.getElementById(id)).filter(Boolean);
   const open = () => { bg.forEach(el => el.setAttribute("inert", "")); modal.classList.remove("modal--hidden"); closeBtn.focus(); };
   const close = () => { modal.classList.add("modal--hidden"); bg.forEach(el => el.removeAttribute("inert")); btn.focus(); };
   btn.onclick = open;
@@ -411,9 +414,58 @@ function analyzePoint(latlng) {
   }
 
   if (pickMarker) map.removeLayer(pickMarker);
+  // A GPS accuracy ring belongs only to a located point — clear it on every (re)analyze.
+  if (accuracyCircle) { map.removeLayer(accuracyCircle); accuracyCircle = null; }
   pickMarker = L.circleMarker(latlng, { radius: 7, color: "#fff", weight: 2, fillColor: "#4ea1ff", fillOpacity: 1 }).addTo(map);
 
   renderResult(latlng, hits, nearest);
+}
+
+// "Locate me" — one-shot GPS fix → centre, mark, and run the spot check for where
+// you're standing. The coordinates are used in place and never stored or sent:
+// there is no backend, and nothing here writes to storage or the network.
+function locateMe() {
+  const btn = document.getElementById("locateBtn");
+  if (!navigator.geolocation) {
+    showResultMessage(`<div class="verdict permission"><span class="verdict__dot"></span>This device can't share its location</div>
+      <div class="hit__rule">Tap "Can I fly here?" and pick a spot on the map instead.</div>`);
+    return;
+  }
+  btn.classList.add("locating");
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      btn.classList.remove("locating");
+      const { latitude, longitude, accuracy } = pos.coords;
+      const latlng = L.latLng(latitude, longitude);
+      map.setView(latlng, Math.max(map.getZoom(), 13));
+      analyzePoint(latlng); // drops the marker + renders the verdict (and clears any stale ring)
+      accuracyCircle = L.circle(latlng, {
+        radius: accuracy, color: "#4ea1ff", weight: 1, fillColor: "#4ea1ff", fillOpacity: 0.1,
+      }).addTo(map);
+      document.getElementById("resultBody").insertAdjacentHTML("beforeend",
+        `<div class="coords">📍 From your device's GPS (±${Math.round(accuracy)} m) — your location stays on your device, never sent anywhere.</div>`);
+    },
+    err => {
+      btn.classList.remove("locating");
+      const msg = err.code === err.PERMISSION_DENIED
+        ? "Location permission is off. Allow it in your browser settings, or tap the map to pick a spot."
+        : err.code === err.TIMEOUT
+        ? "Location is taking too long — try again outdoors, or tap the map to pick a spot."
+        : "Couldn't get a location fix — try again outdoors, or tap the map to pick a spot.";
+      showResultMessage(`<div class="verdict permission"><span class="verdict__dot"></span>Couldn't get your location</div>
+        <div class="hit__rule">${esc(msg)}</div>`);
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+// Show a one-off message (e.g. a geolocation error) in the result panel, clearing
+// any spot-check markers so a stale dot doesn't imply a real verdict.
+function showResultMessage(html) {
+  if (pickMarker) { map.removeLayer(pickMarker); pickMarker = null; }
+  if (accuracyCircle) { map.removeLayer(accuracyCircle); accuracyCircle = null; }
+  document.getElementById("resultBody").innerHTML = html;
+  document.getElementById("result").classList.remove("result--hidden");
 }
 
 function renderResult(latlng, hits, nearest) {

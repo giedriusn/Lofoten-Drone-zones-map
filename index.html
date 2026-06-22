@@ -18,6 +18,12 @@
 <body>
   <div id="map"></div>
 
+  <!-- Locate me: one-shot GPS → centre the map and run the spot check for where
+       you're standing. Coordinates are used in place, never stored or sent. -->
+  <button id="locateBtn" class="locatebtn" type="button"
+          aria-label="Show my location and check this spot — your location stays on your device"
+          title="Where am I? (your location stays on your device)">📍</button>
+
   <!-- Control panel -->
   <aside id="panel" class="panel">
     <header class="panel__head">

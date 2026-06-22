@@ -310,6 +310,33 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
 }
 .pickhint--hidden { opacity: 0; pointer-events: none; visibility: hidden; transform: translateX(-50%) translateY(-8px); transition: opacity .18s, transform .18s, visibility 0s .18s; }
 
+/* ---------- Locate-me button ---------- */
+/* Top-right: clear of the panel + zoom (top-left) and the verdict panel (bottom),
+   and always visible even when the panel is collapsed on phones. */
+.locatebtn {
+  position: absolute; z-index: 1000;
+  top: calc(14px + env(safe-area-inset-top));
+  right: calc(14px + env(safe-area-inset-right));
+  width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(14px);
+  color: var(--text); font-size: 20px; line-height: 1;
+  border-radius: 12px; cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.locatebtn:hover { border-color: var(--accent); }
+/* While waiting for a GPS fix: hide the glyph, show a spinner, ignore taps. */
+.locatebtn.locating { color: transparent; pointer-events: none; }
+.locatebtn.locating::after {
+  content: ""; position: absolute;
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--line); border-top-color: var(--accent);
+  animation: locate-spin .7s linear infinite;
+}
+@keyframes locate-spin { to { transform: rotate(360deg); } }
+
 /* Helipad marker badge */
 .helipad-icon span {
   display: flex; align-items: center; justify-content: center;
