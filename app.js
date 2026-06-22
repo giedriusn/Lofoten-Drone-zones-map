@@ -453,6 +453,15 @@ function locateMe() {
         btn.classList.remove("locating");
         const { latitude, longitude, accuracy } = pos.coords;
         const latlng = L.latLng(latitude, longitude);
+        // Coverage guard: this app only has zone data for the mapped region. Outside it,
+        // analyzePoint() would find nothing and render a falsely reassuring "clear" verdict
+        // (no data ≠ no restriction), and setView clamps to maxBounds so the marker would
+        // sit off-screen anyway. Refuse a verdict for the out-of-region case and say why.
+        if (map.options.maxBounds && !map.options.maxBounds.contains(latlng)) {
+          showResultMessage(`<div class="verdict permission"><span class="verdict__dot"></span>You're outside the mapped area</div>
+            <div class="hit__rule">${esc(`This map only covers ${config.region.name}, so it can't give a verdict for where you are (±${Math.round(accuracy)} m from GPS). Wherever you fly, the standard rules still apply: max 120 m above the surface, keep clear of people, and check NOTAMs.`)}</div>`);
+          return;
+        }
         map.setView(latlng, Math.max(map.getZoom(), 13));
         analyzePoint(latlng); // drops the marker + renders the verdict (and clears any stale ring)
         accuracyCircle = L.circle(latlng, {
