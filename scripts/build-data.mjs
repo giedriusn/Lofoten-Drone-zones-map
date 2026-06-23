@@ -10,6 +10,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { parseRestrictionWindows } from "../season.mjs";
+import { sensitiveFeatures } from "../sensitive.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -533,6 +534,16 @@ async function buildRestrictions() {
   await save("restrictions.geojson", [...byId.values()], "Protected-area flight bans");
 }
 
+// ---------- 8. Military / sensitive sites (NSM advisory) ----------
+// Curated, hand-verified installations rendered as advisory DOTS — NOT NSM's
+// actual sensor-ban zones (no open/authorized feed exists for those geometries).
+// Fully offline/deterministic: just transforms config.sensitive into GeoJSON.
+async function buildSensitive() {
+  const s = config.sensitive || {};
+  const feats = sensitiveFeatures(s.sites || [], { nsm_url: s.nsm_url || "" });
+  await save("sensitive.geojson", feats, "Military / sensitive sites");
+}
+
 // ---------- run ----------
 
 console.log(`Building drone-restriction data for: ${config.region.name}`);
@@ -546,6 +557,7 @@ const steps = [
   ["Helipads", buildHelipads],
   ["Prisons", buildPrisons],
   ["Restrictions", buildRestrictions],
+  ["Sensitive sites", buildSensitive],
 ];
 
 let failures = 0;
