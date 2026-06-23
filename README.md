@@ -27,6 +27,7 @@ military danger areas, protected nature, and built-up areas.
 | **Nature reserves & parks** | National parks, nature reserves, landscape & marine protected areas; seabird reserves flagged for the seasonal nesting ban. | [Miljødirektoratet](https://kart.miljodirektoratet.no/) | **Official government data** |
 | **Protected-area flight bans** | Exact restriction zones inside protected areas — access bans (ferdselsforbud), low-flying-under-300 m (includes drones) and landing bans, with the official per-zone dates. Civilian zones only; military (Forsvaret) zones excluded. | [Miljødirektoratet](https://kart.miljodirektoratet.no/) | **Official government data** |
 | **Prisons** | Prisons (Bodø, Fauske) with a small advisory ring — flying over/near needs permission (BSL A 7-2 §7); the law sets no fixed distance. | OpenStreetMap | Crowd-sourced |
+| **Military / sensitive sites** | Advisory dots at well-known installations (Bodø, Andøya, Evenes, Bardufoss, Ramsund, Sortland). **Not** NSM's sensor-ban zones (no open feed) — every marker points to NSM's own map. | Curated | Hand-verified |
 | **Populated areas** | Towns/villages + residential land. Off by default. | OpenStreetMap | Crowd-sourced |
 | **Controlled airspace (high)** | TMA/CTA (high floor). Off by default — context only, above the 120 m drone ceiling. | luftrom.info | AIP-derived |
 
