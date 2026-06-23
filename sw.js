@@ -1,5 +1,5 @@
 /* Service worker — offline app shell + map tiles. Classic worker for iOS support. */
-const SHELL_CACHE = "drone-shell-v11";
+const SHELL_CACHE = "drone-shell-v12";
 const TILE_CACHE = "drone-tiles-v1"; // NOT version-bumped: tiles are large & stable.
 
 const SHELL_ASSETS = [
@@ -10,7 +10,7 @@ const SHELL_ASSETS = [
   "./vendor/images/marker-icon.png", "./vendor/images/marker-icon-2x.png",
   "./vendor/images/marker-shadow.png",
   "./data/airports.geojson", "./data/airspace.geojson", "./data/nature.geojson",
-  "./data/populated.geojson", "./data/helipads.geojson",
+  "./data/populated.geojson", "./data/helipads.geojson", "./data/prisons.geojson",
   "./icons/icon-192.png", "./icons/icon-512.png",
   "./icons/icon-maskable-512.png", "./icons/apple-touch-icon.png",
 ];

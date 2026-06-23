@@ -18,6 +18,7 @@ const COLORS = {
   airsport: "#ffc400",    // caution → yellow (deeper than pale gold for contrast on the light basemap)
   helipad: "#00c2d1",     // caution → cyan
   populated: "#4d8fd6",   // caution → blue
+  prison: "#d6447d",      // need permission → magenta (distinct from the orange airport/CTR family)
   controlled: "#8aa0b6",  // context (high) → grey
 };
 
@@ -34,6 +35,7 @@ const LAYER_DEFS = [
   { id: "danger", name: "Danger areas (firing/military)", color: COLORS.danger, on: true, file: "airspace", match: p => p.category === "danger", dashed: true, blocking: true, severity: "nofly" },
   { id: "exercise", name: "Military exercise areas (NOTAM)", color: COLORS.exercise, on: true, file: "airspace", match: p => p.category === "exercise", dashed: true, blocking: false, severity: "conditional" },
   { id: "nature", name: "Nature reserves & parks", color: COLORS.reserve, on: true, file: "nature", blocking: true, severity: "nofly" },
+  { id: "prison", name: "Prisons", color: COLORS.prison, on: true, file: "prisons", blocking: true, severity: "permission" },
   { id: "helipad", name: "Hospital / HEMS helipads", color: COLORS.helipad, on: true, file: "helipads", blocking: false, severity: "caution" },
   { id: "airsport", name: "Air sports areas", color: COLORS.airsport, on: false, file: "airspace", match: p => p.category === "airsport", blocking: false, severity: "caution", stroke: "#7a5200", weight: 2 },
   { id: "populated", name: "Populated areas", color: COLORS.populated, on: false, file: "populated", blocking: false, severity: "caution" },
@@ -79,7 +81,7 @@ async function init() {
   L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
 
   // Load all data files in parallel.
-  const files = ["airports", "airspace", "nature", "populated", "helipads"];
+  const files = ["airports", "airspace", "nature", "populated", "helipads", "prisons"];
   const data = {};
   await Promise.all(files.map(async f => {
     try { data[f] = await (await fetch(`data/${f}.geojson`)).json(); }
@@ -87,6 +89,7 @@ async function init() {
   }));
 
   for (const def of LAYER_DEFS) buildLayer(def, data[def.file]);
+  showDataAge(data);
   buildLayerUI();
   wireControls();
   setupOfflineUI({ config, switchBasemap: basemaps.switchTo });
@@ -160,6 +163,8 @@ function buildLayer(def, fc) {
       addAirport(group, f, def);
     } else if (def.id === "helipad") {
       addHelipad(group, f, def);
+    } else if (def.id === "prison") {
+      addPrison(group, f, def);
     } else if (f.geometry.type === "Point") {
       addPlacePoint(group, f, def);
     } else {
@@ -175,17 +180,20 @@ function buildLayer(def, fc) {
   if (def.on) group.addTo(map);
 }
 
+// Shared advisory/no-fly ring for point features with a radius (airport 5 km zone,
+// prison advisory ring). Centralises the L.circle styling both used to duplicate.
+function addAdvisoryRing(group, lat, lon, def, f, { radius, dashArray = null, weight = 1.5 }) {
+  const ring = L.circle([lat, lon], {
+    radius, dashArray, weight, color: def.color, fillColor: def.color, fillOpacity: 0.12,
+  });
+  ring.bindPopup(popupHtml(f, def));
+  group.addLayer(ring);
+}
+
 function addAirport(group, f, def) {
   const [lon, lat] = f.geometry.coordinates;
   const p = f.properties;
-  if (p.buffer_km > 0) {
-    const ring = L.circle([lat, lon], {
-      radius: p.buffer_km * 1000,
-      color: def.color, weight: 1.5, fillColor: def.color, fillOpacity: 0.12,
-    });
-    ring.bindPopup(popupHtml(f, def));
-    group.addLayer(ring);
-  }
+  if (p.buffer_km > 0) addAdvisoryRing(group, lat, lon, def, f, { radius: p.buffer_km * 1000 });
   // Controlled airports (with a ring) are bold; uncontrolled strips/heliports are smaller and hollow.
   const controlled = p.buffer_km > 0;
   const dot = L.circleMarker([lat, lon], {
@@ -214,6 +222,20 @@ function addHelipad(group, f, def) {
   group.addLayer(m);
 }
 
+function addPrison(group, f, def) {
+  const [lon, lat] = f.geometry.coordinates;
+  const p = f.properties;
+  // Faint dashed advisory ring (no fixed legal distance — see config.prisons) plus a
+  // solid marker. The ring is small (~300 m) so it only reads when zoomed in.
+  addAdvisoryRing(group, lat, lon, def, f, { radius: p.advisory_m ?? 300, dashArray: "4 3", weight: 1 });
+  const dot = L.circleMarker([lat, lon], {
+    radius: 5, color: "#fff", weight: 1.5, fillColor: def.color, fillOpacity: 1,
+  });
+  dot.bindPopup(popupHtml(f, def));
+  dot.bindTooltip(esc(p.name), { direction: "top", offset: [0, -6] });
+  group.addLayer(dot);
+}
+
 function addPlacePoint(group, f, def) {
   const [lon, lat] = f.geometry.coordinates;
   const p = f.properties;
@@ -240,6 +262,7 @@ function colorFor(def, p) {
 function typeLabel(def, p) {
   if (def.file === "airspace") return p.label;
   if (def.file === "nature") return p.verneform || "Protected area";
+  if (def.id === "prison") return "Prison";
   return def.name;
 }
 
@@ -295,6 +318,22 @@ function fmtCeil(m) {
 }
 
 /* ---------------- Layer toggle UI ---------------- */
+
+// Stamp the disclaimer with the data build date so the "may be out of date" caveat
+// is concrete: airspace reflects the AIRAC cycle current on that date, and a snapshot
+// older than ~28 days has likely missed a cycle. Uses the newest `generated` stamp
+// across the loaded layers.
+function showDataAge(data) {
+  const el = document.getElementById("dataAge");
+  if (!el) return;
+  // The caveat names the airspace layer, so stamp it from airspace's OWN build date —
+  // not the newest across layers, which would overstate freshness if airspace failed
+  // to rebuild while another layer refreshed. Fall back to the OLDEST stamp so the
+  // banner can never claim the data is fresher than its stalest layer.
+  const stamps = Object.values(data).map(d => d?.generated).filter(Boolean).sort();
+  const built = data.airspace?.generated || stamps[0];
+  if (built) el.textContent = ` Data built ${built.slice(0, 10)} — airspace reflects the AIRAC cycle current then.`;
+}
 
 function buildLayerUI() {
   const root = document.getElementById("layers");
@@ -564,7 +603,7 @@ function renderResult(latlng, hits, nearest) {
     : "";
 
   const clearNote = !blocking.length
-    ? `<div class="hit__rule">No airport/control/traffic zone, restricted or danger area, or protected area covers this point at drone altitude. Standard rules still apply: max 120 m above the surface, keep clear of people, check NOTAMs.</div>
+    ? `<div class="hit__rule">No airport/control/traffic zone, restricted or danger area, protected area, or prison covers this point at drone altitude. Standard rules still apply: max 120 m above the surface, keep clear of people, check NOTAMs.</div>
        <div class="hit__rule wildlife">🐦 Wildlife rule (everywhere, even here): under <em>naturmangfoldloven §15</em> you must not disturb wildlife — especially nesting birds. Don't fly low over animals, flocks or nests.</div>`
     : "";
   const contextHtml = context.length

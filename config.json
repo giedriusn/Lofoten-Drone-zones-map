@@ -16,22 +16,28 @@
     "buffer_km": 5,
     "_comment": "5 km ring only for airports with scheduled air traffic service, where the official Luftfartstilsynet '5 km + ATC permission' rule applies. Uncontrolled airstrips and heliports are shown as advisory markers.",
     "ring_types": ["large_airport", "medium_airport", "small_airport"],
-    "marker_types": ["large_airport", "medium_airport", "small_airport", "heliport", "seaplane_base"]
+    "marker_types": ["large_airport", "medium_airport", "small_airport", "heliport", "seaplane_base"],
+    "_capture_margin_comment": "Airports are captured within the region bbox PLUS this degree margin, so a field just outside the display edge (e.g. Bardufoss, ~0.04° east of E) — whose CTR/TMA already bleeds into the region — gets its marker and 5 km ring too. Small enough to still exclude Tromsø (~0.4° beyond).",
+    "capture_margin_deg": 0.15
   },
   "airspace": {
     "drone_floor_max_m": 305,
     "drone_relevant_classes": ["D", "R", "Q", "G", "Luftsport"],
     "context_classes": ["C"]
   },
+  "prisons": {
+    "_comment": "Flying over/near a prison needs permission (BSL A 7-2 §7); the law sets no distance. advisory_m is a pragmatic 'keep clear' caution radius for the spot-check, NOT a legal boundary.",
+    "advisory_m": 300
+  },
   "sources": {
     "airports_csv": "https://davidmegginson.github.io/ourairports-data/airports.csv",
     "airspace_geojson": "https://raw.githubusercontent.com/relet/pg-xc/master/geojson/luftrom.geojson",
     "nature_arcgis": "https://kart.miljodirektoratet.no/arcgis/rest/services/vern/MapServer/0/query",
-    "_overpass_note": "first array entry tried first; others are fallback mirrors",
+    "_overpass_note": "first array entry tried first; others are fallback mirrors. Western full-planet instances only — all require a User-Agent (set in build-data.mjs).",
     "overpass": [
       "https://overpass-api.de/api/interpreter",
       "https://overpass.kumi.systems/api/interpreter",
-      "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+      "https://overpass.private.coffee/api/interpreter"
     ]
   }
 }

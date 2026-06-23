@@ -30,21 +30,24 @@ export function haversine(lat1, lon1, lat2, lon2) {
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-// Does the feature contain the point? (airport ring = within radius; polygon =
-// point-in-polygon; markers/points have no area.)
+// Radius (metres) of a circular point-feature, or null if it isn't one. Single
+// source of truth for the three "point + advisory/no-fly ring" layers so the circle
+// math lives in one place: airport 5 km ring, helipad caution radius, prison advisory
+// ring. (`?? `, not `||`, so a deliberately-configured 0 isn't bumped to a default.)
+export function featureRadiusM(def, f) {
+  if (def.id === "airport") return f.properties.buffer_km > 0 ? f.properties.buffer_km * 1000 : null;
+  if (def.id === "helipad") return 1000; // advisory caution radius — surfaces HEMS traffic
+  if (def.id === "prison") return f.properties.advisory_m ?? 300; // no legal distance; "keep clear" caution
+  return null;
+}
+
+// Does the feature contain the point? (circular feature = within radius; polygon =
+// point-in-polygon; markers/points with no ring have no area.)
 export function featureContains(lat, lng, def, f) {
-  if (def.id === "airport") {
-    if (f.properties.buffer_km > 0) {
-      const [flon, flat] = f.geometry.coordinates;
-      return haversine(lat, lng, flat, flon) <= f.properties.buffer_km * 1000;
-    }
-    return false;
-  }
-  if (def.id === "helipad") {
-    // 1 km advisory caution radius so an on/near-pad click surfaces HEMS traffic
-    // (non-blocking — appears under "Context / advisory").
+  const r = featureRadiusM(def, f);
+  if (r != null) {
     const [flon, flat] = f.geometry.coordinates;
-    return haversine(lat, lng, flat, flon) <= 1000;
+    return haversine(lat, lng, flat, flon) <= r;
   }
   if (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon") {
     return pointInGeom(lng, lat, f.geometry);
@@ -56,15 +59,13 @@ export function featureContains(lat, lng, def, f) {
 // { distM, lat, lon } — so distance AND bearing use the same point.
 // Returns null for features with no usable area.
 export function nearestPointOnFeature(lat, lng, def, f) {
-  if (def.id === "airport") {
-    if (f.properties.buffer_km > 0) {
-      const [flon, flat] = f.geometry.coordinates;
-      const d = Math.max(0, haversine(lat, lng, flat, flon) - f.properties.buffer_km * 1000);
-      // For a circle, the nearest ring point lies toward the centre, so bearing
-      // to the centre IS the bearing to the nearest edge point.
-      return { distM: d, lat: flat, lon: flon };
-    }
-    return null;
+  const r = featureRadiusM(def, f);
+  if (r != null) {
+    const [flon, flat] = f.geometry.coordinates;
+    const d = Math.max(0, haversine(lat, lng, flat, flon) - r);
+    // For a circle, the nearest ring point lies toward the centre, so bearing
+    // to the centre IS the bearing to the nearest edge point.
+    return { distM: d, lat: flat, lon: flon };
   }
   if (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon") {
     return minEdgePoint(lat, lng, f.geometry);

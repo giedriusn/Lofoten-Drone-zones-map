@@ -38,6 +38,11 @@ function bboxIntersectsRegion([x0, y0, x1, y1]) {
   return !(x1 < W || x0 > E || y1 < S || y0 > N);
 }
 
+// Dedup key for OSM features that come back as both a node and an enclosing way/relation
+// for the same site: snap to a ~0.001° grid (~110 m N–S, ~45 m E–W at this latitude) so
+// the duplicate pair collapses to one feature. Shared by the helipad and prison builds.
+const gridKey = (lat, lon) => `${lat.toFixed(3)},${lon.toFixed(3)}`;
+
 // ---------- output helpers ----------
 
 function fc(features) {
@@ -84,13 +89,16 @@ async function buildAirports() {
   const ringTypes = new Set(config.airports.ring_types);
   const markerTypes = new Set(config.airports.marker_types);
   const km = config.airports.buffer_km;
+  // Capture airports a little beyond the display bbox so a field whose airspace
+  // already intrudes (e.g. Bardufoss, just east of E) still gets a marker + ring.
+  const m = config.airports.capture_margin_deg ?? 0;
   const features = [];
   for (const a of csv) {
     if (a.iso_country !== "NO") continue;
     if (!markerTypes.has(a.type)) continue;
     const lon = parseFloat(a.longitude_deg), lat = parseFloat(a.latitude_deg);
     if (!isFinite(lon) || !isFinite(lat)) continue;
-    if (lon < W || lon > E || lat < S || lat > N) continue;
+    if (lon < W - m || lon > E + m || lat < S - m || lat > N + m) continue;
 
     const scheduled = a.scheduled_service === "yes";
     const isHeliport = a.type === "heliport";
@@ -295,7 +303,13 @@ async function overpassQuery(q) {
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" },
+        headers: {
+          "Content-Type": "text/plain",
+          // Overpass instances reject UA-less clients (overpass-api.de → 406,
+          // kumi → 429 "include a meaningful User-Agent"). Identify ourselves so
+          // the public mirrors serve us instead of throttling.
+          "User-Agent": "Lofoten-Drone-Zones-Map/1.0 (+https://github.com/giedriusn/Lofoten-Drone-zones-map; non-commercial drone-safety map)",
+        },
         body: q,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
@@ -365,32 +379,92 @@ async function buildHelipads() {
   node["aeroway"="helipad"](${S},${W},${N},${E});
   way["aeroway"="helipad"](${S},${W},${N},${E});
   node["emergency"="landing_site"](${S},${W},${N},${E});
+  way["emergency"="landing_site"](${S},${W},${N},${E});
 );
 out tags center;`;
   const data = await overpassQuery(q);
   const features = [];
+  const seen = new Set();
   for (const el of data.elements || []) {
     const t = el.tags || {};
     const name = t.name || "";
-    // Keep only named transport/hospital pads — skip unnamed private/mountain pads.
-    if (!/sykehus|helikopterplass|helikopterhavn/i.test(name)) continue;
+    // Match against more than just the name — many hospital/air-ambulance pads carry
+    // the hospital in `operator`/`description` rather than `name`, and were missed by
+    // the old name-only filter. Designated emergency landing sites (emergency=landing_site)
+    // are HEMS infrastructure by definition and kept regardless. Still skip the many
+    // unnamed private/mountain helipads so the layer stays signal, not noise.
+    const hay = `${name} ${t.operator || ""} ${t.description || ""} ${t["operator:type"] || ""} ${t.healthcare || ""}`;
+    const isLandingSite = t.emergency === "landing_site";
+    const matched = /sykehus|helikopterplass|helikopterhavn|luftambulanse|ambulanse|HEMS|hospital/i.test(hay);
+    if (!matched && !isLandingSite) continue;
     const lon = el.lon ?? el.center?.lon, lat = el.lat ?? el.center?.lat;
     if (!isFinite(lon) || !isFinite(lat)) continue;
-    const hospital = /sykehus/i.test(name);
+    const key = gridKey(lat, lon);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    // "hospital" really means "air-ambulance/HEMS-grade" — give it the strong keep-clear
+    // rule. Pads admitted via an air-ambulance operator (luftambulanse/HEMS) but with no
+    // literal "hospital"/"sykehus" token must still get the HEMS warning, not the weak one.
+    const hospital = /sykehus|hospital|luftambulanse|ambulanse|HEMS/i.test(hay);
     features.push({
       type: "Feature",
       geometry: { type: "Point", coordinates: [lon, lat] },
       properties: {
         layer: "helipad",
-        name,
+        name: name || (hospital ? "Hospital helipad" : isLandingSite ? "Emergency landing site" : "Helipad"),
         hospital,
         rule: hospital
           ? "Hospital helipad — air-ambulance (HEMS) helicopters operate here, often low and unannounced. Keep well clear; never obstruct emergency flights."
+          : isLandingSite
+          ? "Designated emergency (HEMS) landing site — air-ambulance helicopters may land here at short notice. Keep clear and give way."
           : "Helipad — helicopter traffic, often low and unscheduled. Keep clear.",
       },
     });
   }
   await save("helipads.geojson", features, "Hospital / HEMS helipads");
+}
+
+// ---------- 6. Prisons ----------
+
+// Flying over / near a prison needs permission from the local authority
+// (BSL A 7-2 §7). The law gives no fixed distance, so we render the facility as a
+// point with a modest advisory radius (config.prisons.advisory_m) — clearly a
+// "keep well clear" caution, not a surveyed legal boundary.
+async function buildPrisons() {
+  const q = `[out:json][timeout:120];
+(
+  node["amenity"="prison"](${S},${W},${N},${E});
+  way["amenity"="prison"](${S},${W},${N},${E});
+  relation["amenity"="prison"](${S},${W},${N},${E});
+);
+out tags center;`;
+  const data = await overpassQuery(q);
+  const advisory_m = config.prisons?.advisory_m ?? 300;
+  const features = [];
+  const seen = new Set();
+  for (const el of data.elements || []) {
+    const t = el.tags || {};
+    // An OSM prison is often mapped as an unnamed amenity=prison perimeter. Under-reporting
+    // a blocking no-fly is the unsafe direction, so keep it with a generic label rather than
+    // dropping it (every query element is already a prison facility; dedup handles duplicates).
+    const name = t.name || "Prison";
+    const lon = el.lon ?? el.center?.lon, lat = el.lat ?? el.center?.lat;
+    if (!isFinite(lon) || !isFinite(lat)) continue;
+    const key = gridKey(lat, lon);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    features.push({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [lon, lat] },
+      properties: {
+        layer: "prison",
+        name,
+        advisory_m,
+        rule: "Prison — flying over or near a prison needs permission from the facility / local authority (BSL A 7-2 §7). No fixed distance is set in law; keep well clear.",
+      },
+    });
+  }
+  await save("prisons.geojson", features, "Prisons");
 }
 
 // ---------- run ----------
@@ -404,6 +478,7 @@ const steps = [
   ["Nature", buildNature],
   ["Populated", buildPopulated],
   ["Helipads", buildHelipads],
+  ["Prisons", buildPrisons],
 ];
 
 let failures = 0;

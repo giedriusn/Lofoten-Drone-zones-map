@@ -9,7 +9,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   pointInRing, pointInGeom, haversine,
-  featureContains, nearestPointOnFeature, minEdgePoint,
+  featureContains, nearestPointOnFeature, minEdgePoint, featureRadiusM,
   bearingTo, fmtDist,
 } from "../geometry.mjs";
 
@@ -74,6 +74,32 @@ test("nearestPointOnFeature: airport distance is to the ring edge, not the centr
   const f = { geometry: { type: "Point", coordinates: [14.0, 68.0] }, properties: { buffer_km: 5 } };
   const np = nearestPointOnFeature(68.2, 14.0, def, f); // ~22.2 km north of centre
   assert.ok(np && Math.abs(np.distM - (haversine(68.2, 14.0, 68.0, 14.0) - 5000)) < 1);
+});
+
+test("featureContains: prison uses its advisory radius (lat/lon order pinned)", () => {
+  const def = { id: "prison" };
+  const f = { geometry: { type: "Point", coordinates: [14.0, 68.0] }, properties: { advisory_m: 300 } };
+  // ~200 m away (mostly east, where cos(lat) matters) → inside the 300 m ring.
+  // A swapped haversine would misread this point and flip the verdict.
+  assert.equal(featureContains(68.001, 14.004, def, f), true);
+  assert.equal(featureContains(68.01, 14.0, def, f), false); // ~1.1 km away → outside
+});
+
+test("nearestPointOnFeature: prison distance is to the advisory ring edge", () => {
+  const def = { id: "prison" };
+  const f = { geometry: { type: "Point", coordinates: [14.0, 68.0] }, properties: { advisory_m: 300 } };
+  const np = nearestPointOnFeature(68.2, 14.0, def, f); // ~22.2 km north of centre
+  assert.ok(np && Math.abs(np.distM - (haversine(68.2, 14.0, 68.0, 14.0) - 300)) < 1);
+});
+
+test("featureRadiusM: a configured advisory_m of 0 is honoured, not bumped to a default", () => {
+  // Pins the ?? -vs- || fix: advisory_m:0 means "no ring", so nothing is contained.
+  const def = { id: "prison" };
+  const f = { geometry: { type: "Point", coordinates: [14.0, 68.0] }, properties: { advisory_m: 0 } };
+  assert.equal(featureRadiusM(def, f), 0);
+  assert.equal(featureContains(68.0, 14.0001, def, f), false); // ~4 m away, but radius 0
+  // Airport with no buffer (uncontrolled airfield) is not a circular feature.
+  assert.equal(featureRadiusM({ id: "airport" }, { properties: { buffer_km: 0 } }), null);
 });
 
 test("nearestPointOnFeature: polygon branch finds the nearest edge point", () => {
