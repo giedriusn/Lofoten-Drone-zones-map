@@ -214,9 +214,12 @@ async function buildAirspace() {
 
 // Rule text tiered by protection type (verified against Miljødirektoratet /
 // Lovdata). There is NO high-altitude exemption — bans cover the whole air column.
-function natureRule(cat, seasonal) {
+function natureRule(cat, seasonal, seabird) {
+  if (seabird) {
+    return "Seabird reserve (Verneplan for sjøfugl). A nature reserve — drone flight is banned year-round under its verneforskrift (take-off, landing AND flying in; no altitude exemption). On top of that, a seasonal access ban (ferdselsforbud) closes it during nesting, typically 15 Apr–31 Jul (some areas to 15 Aug) — exact dates vary, check the verneforskrift.";
+  }
   const season = seasonal
-    ? " Seasonal: bird/seabird reserves have a strict access ban (ferdselsforbud), typically 15 Apr–31 Jul (some to 15 Aug) during nesting — stay out and do not fly."
+    ? " Seasonal: wildlife reserves may add a strict access ban (ferdselsforbud) during breeding — stay out and do not fly. Check the verneforskrift for dates."
     : "";
   let base;
   if (cat.includes("nasjonalpark")) {
@@ -241,7 +244,7 @@ async function buildNature() {
       geometryType: "esriGeometryEnvelope",
       inSR: "4326", outSR: "4326",
       spatialRel: "esriSpatialRelIntersects",
-      outFields: "naturvernId,navn,offisieltNavn,verneform,verneformAggregert,kommune,verneforskrift,faktaark,vernedato,forvaltningsmyndighet,iucn",
+      outFields: "naturvernId,navn,offisieltNavn,verneform,verneformAggregert,kommune,verneforskrift,faktaark,vernedato,forvaltningsmyndighet,iucn,verneplan",
       f: "geojson",
       // Simplify server-side: ~10 m tolerance + 6-decimal precision. Keeps
       // boundaries tight for planning while cutting the payload ~10x.
@@ -259,11 +262,11 @@ async function buildNature() {
       const cat = (p.verneformAggregert || "").toLowerCase();
       const name = p.offisieltNavn || p.navn || "";
       const vf = (p.verneform || "").toLowerCase();
-      // Wildlife/bird reserves typically carry a seasonal access ban (ferdselsforbud,
-      // ~15 Apr–31 Jul) during nesting. Flag from the authoritative verneform plus a
-      // "fugl" name token. (Bare egg/holm/vær were dropped — they false-match names
-      // like Eggum/Heggedalen/Langholmen; the global banner covers any we miss.)
-      const seasonal = /dyreliv|dyrefredning|fugl/.test(vf) || /fugl/i.test(name);
+      const seabird = (p.verneplan || "") === "VerneplanSjoefugl";
+      // verneplan is the authoritative seabird signal (most seabird reserves are
+      // plain "Naturreservat" by verneform, so name/verneform matching misses them).
+      // Keep the old tokens as a fallback for non-seabird wildlife areas (Dyrelivsfredning…).
+      const seasonal = seabird || /dyreliv|dyrefredning|fugl/.test(vf) || /fugl/i.test(name);
       features.push({
         type: "Feature",
         geometry: f.geometry,
@@ -272,13 +275,15 @@ async function buildNature() {
           name,
           verneform: p.verneform,
           category: cat,
+          seabird,
           seasonal,
+          ...(seabird ? { nesting_from: "04-15", nesting_to: "07-31" } : {}),
           municipality: p.kommune || "",
           iucn: p.iucn || "",
           protected_since: p.vernedato ? new Date(p.vernedato).toISOString().slice(0, 10) : "",
           regulation: p.verneforskrift || "",
           factsheet: p.faktaark || "",
-          rule: natureRule(cat, seasonal),
+          rule: natureRule(cat, seasonal, seabird),
         },
       });
     }
