@@ -1,0 +1,53 @@
+name: refresh-data
+
+# Manual-only "refresh now" button. Trigger it from your phone:
+#   GitHub repo → Actions tab → "refresh-data" → Run workflow.
+# GitHub's runner re-fetches every source, rebuilds data/*.geojson, validates
+# them, and commits the result back to main — so Pages redeploys and the PWA
+# (which serves data network-first) shows the fresh data next time you open it
+# online. Your phone never runs Node; the runner does.
+
+on:
+  workflow_dispatch:
+
+# Needed so the job can push the refreshed data commit back to the branch.
+permissions:
+  contents: write
+
+# Don't pile up refreshes if you tap twice; let an in-flight run finish.
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Re-fetch the four keyless public sources, clip to the region, regenerate
+      # every data/*.geojson. No deps (Node 18+ global fetch). Fails the run if a
+      # source is unreachable — no bad data gets committed.
+      - name: Rebuild restriction data from sources
+        run: node scripts/build-data.mjs
+
+      # Gate: validate the freshly built data before committing. Same suite CI
+      # runs on push; if a fetch returned something malformed, this stops here.
+      - name: Validate rebuilt data
+        run: node --test scripts/tiles.test.mjs scripts/geometry.test.mjs scripts/offline-assets.test.mjs scripts/season.test.mjs scripts/sensitive.test.mjs scripts/source-utils.test.mjs scripts/data-health.test.mjs
+
+      - name: Commit refreshed data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --staged --quiet; then
+            echo "No data changes — sources returned identical data."
+          else
+            git commit -m "Refresh restriction data from sources (manual trigger)"
+            git push
+          fi
