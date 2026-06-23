@@ -6,8 +6,10 @@ military danger areas, protected nature, and built-up areas.
 
 > ⚠️ **Not for legal navigation.** The data is assembled from public/community
 > sources and may be incomplete or out of date. It does **not** include temporary
-> restrictions (NOTAMs). Always confirm on **[flydrone.no](https://flydrone.no)**
-> and the **SafeToFly** app, and check NOTAMs, before every flight.
+> restrictions (NOTAMs) or **NSM photo/sensor-ban zones** around military/sensitive
+> sites (NSM publishes those only in its own viewer). Always confirm on
+> **[flydrone.no](https://flydrone.no)** / the **SafeToFly** app, check **NOTAMs**,
+> and check **[NSM's sensor-ban map](https://nsm.no/tjenester/kart-over-forbudsomrader-for-luftbarne-sensorsystemer/)**, before every flight.
 
 ![screenshot](drone-map-final.png)
 

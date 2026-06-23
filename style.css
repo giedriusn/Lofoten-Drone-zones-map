@@ -22,6 +22,7 @@
   --c-helipad: #00c2d1;
   --c-prison: #d6447d;
   --c-exercise: #9a6fb0;
+  --c-nsm: #7c8aa3;
 
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -159,6 +160,8 @@ a { color: var(--accent); }
 .rulesbtn + .rulesbtn { margin-top: 8px; }
 .rulesbtn--notam { border-color: rgba(255,34,56,.45); background: rgba(255,34,56,.10); color: #ffb3c2; }
 .rulesbtn--notam:hover { border-color: #ff2238; }
+.rulesbtn--nsm { border-color: rgba(124,138,163,.5); background: rgba(124,138,163,.12); color: #c2cee0; }
+.rulesbtn--nsm:hover { border-color: #9fb0c6; }
 
 .modal {
   position: absolute; inset: 0; z-index: 2000;
