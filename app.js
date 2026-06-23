@@ -4,7 +4,7 @@
 
 import { registerServiceWorker, kartverketBasemap, setupOfflineUI } from "./offline.mjs";
 import { featureContains, nearestPointOnFeature, bearingTo, fmtDist } from "./geometry.mjs";
-import { nestingActive } from "./season.mjs";
+import { nestingActive, windowsActive } from "./season.mjs";
 
 const COLORS = {
   // Severity palette: RED = strict no-fly · ORANGE = need permission · others = caution/context
@@ -21,6 +21,7 @@ const COLORS = {
   helipad: "#00c2d1",     // caution → cyan
   populated: "#4d8fd6",   // caution → blue
   prison: "#d6447d",      // need permission → magenta (distinct from the orange airport/CTR family)
+  restriction: "#ff2238", // protected-area flight ban = strict no-fly (red); dark solid edge
   controlled: "#8aa0b6",  // context (high) → grey
 };
 
@@ -38,6 +39,7 @@ const LAYER_DEFS = [
   { id: "exercise", name: "Military exercise areas (NOTAM)", color: COLORS.exercise, on: true, file: "airspace", match: p => p.category === "exercise", dashed: true, blocking: false, severity: "conditional" },
   { id: "nature", name: "Nature reserves & parks", color: COLORS.reserve, on: true, file: "nature", match: p => !p.seabird, blocking: true, severity: "nofly" },
   { id: "seabird", name: "Seabird reserves (nesting ban)", color: COLORS.seabird, on: true, file: "nature", match: p => p.seabird, dashed: true, blocking: true, severity: "nofly", stroke: "#7a0010", weight: 2 },
+  { id: "restriction", name: "Protected-area flight bans", color: COLORS.restriction, on: true, file: "restrictions", blocking: true, severity: "nofly", stroke: "#5a000c", weight: 2.4 },
   { id: "prison", name: "Prisons", color: COLORS.prison, on: true, file: "prisons", blocking: true, severity: "permission" },
   { id: "helipad", name: "Hospital / HEMS helipads", color: COLORS.helipad, on: true, file: "helipads", blocking: false, severity: "caution" },
   { id: "airsport", name: "Air sports areas", color: COLORS.airsport, on: false, file: "airspace", match: p => p.category === "airsport", blocking: false, severity: "caution", stroke: "#7a5200", weight: 2 },
@@ -84,7 +86,7 @@ async function init() {
   L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
 
   // Load all data files in parallel.
-  const files = ["airports", "airspace", "nature", "populated", "helipads", "prisons"];
+  const files = ["airports", "airspace", "nature", "populated", "helipads", "prisons", "restrictions"];
   const data = {};
   await Promise.all(files.map(async f => {
     try { data[f] = await (await fetch(`data/${f}.geojson`)).json(); }
@@ -274,6 +276,7 @@ function typeLabel(def, p) {
   if (def.file === "airspace") return p.label;
   if (def.file === "nature") return p.verneform || "Protected area";
   if (def.id === "prison") return "Prison";
+  if (def.id === "restriction") return "Protected-area flight ban";
   return def.name;
 }
 
@@ -287,11 +290,16 @@ function styleFor(def, p) {
   // (a darker outline than its fill) and/or `weight`: pale-yellow zones wash out on the
   // light basemap, so they get a dark amber edge drawn a little heavier.
   const noFly = def.severity === "nofly";
-  const seabirdActive = def.id === "seabird" && nestingActive(p.nesting_from, p.nesting_to, new Date());
+  // Seabird + restriction layers are date-aware no-fly zones: bolder/more opaque while
+  // their ban is in force today, lighter when dormant.
+  const dateAware = def.id === "seabird" || def.id === "restriction";
+  const activeNow = def.id === "seabird" ? nestingActive(p.nesting_from, p.nesting_to, new Date())
+    : def.id === "restriction" ? windowsActive(p.windows, p.year_round, new Date())
+    : false;
   return {
     color: def.stroke || fill, fillColor: fill,
-    weight: def.id === "seabird" ? (seabirdActive ? 2.6 : 1.6) : (def.weight ?? (noFly ? 2.2 : def.id === "tiz" ? 1 : 1.5)),
-    fillOpacity: def.id === "seabird" ? (seabirdActive ? 0.32 : 0.12)
+    weight: dateAware ? (activeNow ? 2.6 : 1.7) : (def.weight ?? (noFly ? 2.2 : def.id === "tiz" ? 1 : 1.5)),
+    fillOpacity: dateAware ? (activeNow ? 0.32 : 0.12)
       : def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.15
       : def.id === "populated" ? 0.18 : noFly ? 0.24 : 0.16,
     dashArray: def.dashed ? "6 4" : null,
@@ -308,6 +316,18 @@ function nestingStatusHtml(p) {
   return active
     ? `<div class="pp-rule nesting nesting--on">🐦 Nesting ban ACTIVE now — closed until 31 Jul (ferdselsforbud)</div>`
     : `<div class="pp-rule nesting nesting--off">🐦 Nesting ban — dormant now (applies ~15 Apr–31 Jul)</div>`;
+}
+
+// Restriction-zone detail + live status, shown in the popup and the spot-check verdict.
+function restrictionStatusHtml(p) {
+  if (p.layer !== "restriction") return "";
+  const detail = p.restrictions ? `<div class="pp-rule">${esc(p.restrictions)}</div>` : "";
+  const drones = p.drones_explicit ? " — explicitly includes drones (modellfly)" : "";
+  const active = windowsActive(p.windows, p.year_round, new Date());
+  const status = active
+    ? `<div class="pp-rule nesting nesting--on">🚫 In force now${drones}</div>`
+    : `<div class="pp-rule nesting nesting--off">Seasonal — not in force today${drones}</div>`;
+  return detail + status;
 }
 
 function popupHtml(f, def) {
@@ -332,6 +352,7 @@ function popupHtml(f, def) {
     <div class="pp-type">${esc(type)}</div>
     <div class="pp-rule">${esc(p.rule || "")}</div>
     ${nestingStatusHtml(p)}
+    ${restrictionStatusHtml(p)}
     ${extra}
     ${links.length ? `<div class="pp-rule">${links.join(" · ")}</div>` : ""}`;
 }
@@ -617,6 +638,7 @@ function renderResult(latlng, hits, nearest) {
       <div class="hit__type">${esc(type)}${alt}</div>
       <div class="hit__rule">${esc(h.p.rule || "")}${reg}</div>
       ${nestingStatusHtml(h.p)}
+      ${restrictionStatusHtml(h.p)}
     </div>`;
   };
 
