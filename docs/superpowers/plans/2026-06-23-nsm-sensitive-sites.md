@@ -57,7 +57,7 @@ Insert after the `prisons` object (keep the trailing comma structure valid):
   },
 ```
 
-Coordinates are best-known values; verify each against an authoritative source (e.g. the installation's official page / Kartverket) before Task 8. All must satisfy `W - margin ≤ lon ≤ E + margin` and `S - margin ≤ lat ≤ N + margin` where bbox is `[11.0, 66.7, 18.5, 69.6]` and margin = `0.15` (Bardufoss at lon 18.54 relies on this margin, same as its airport entry).
+Coordinates are best-known values; verify each against an authoritative source (e.g. the installation's official page / Kartverket) before the final verification in Task 7. All must satisfy `W - margin ≤ lon ≤ E + margin` and `S - margin ≤ lat ≤ N + margin` where bbox is `[11.0, 66.7, 18.5, 69.6]` and margin = `0.15` (Bardufoss at lon 18.54 relies on this margin, same as its airport entry).
 
 - [ ] **Step 2: Verify JSON parses**
 
