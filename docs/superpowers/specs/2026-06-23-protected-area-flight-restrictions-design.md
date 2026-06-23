@@ -90,7 +90,11 @@ export function parseRestrictionWindows(text) { /* regex /(\d{1,2})\.(\d{1,2})\s
 
 - Tested: `"15.4-31.7"` → `[{from:"04-15",to:"07-31"}]`; `"1.1-31.12"` → year-round;
   multi-range text → multiple windows; no dates → `[]`.
-- Reuses the existing `nestingActive(from,to,today)` at view time for "active now".
+- Also add a thin wrapper `windowsActive(windows, yearRound, today)` (in `season.mjs`,
+  tested) — returns true if `yearRound` or **any** window is active via the existing
+  `nestingActive`. NOTE: the restriction layer stores a `windows` ARRAY, whereas the
+  seabird layer used scalar `nesting_from`/`nesting_to`; do not expect a one-line reuse
+  of `nestingActive`/`nestingStatusHtml` — the restriction paths call `windowsActive`.
 
 ### 2. Pipeline step — `scripts/build-data.mjs` (`buildRestrictions`)
 
@@ -98,14 +102,18 @@ export function parseRestrictionWindows(text) { /* regex /(\d{1,2})\.(\d{1,2})\s
 - Query civilian layers 0,1,2 with the region envelope (same paging/bbox approach as
   `buildNature`).
 - **Dedup by `vernRestriksjonId`** across the three layers; when a duplicate appears,
-  keep the record with the longest `restriksjonerBeskrivelse` (most complete).
+  keep the record with the longest `restriksjonerBeskrivelse` (most complete); on a
+  length tie keep the first seen, so the build is deterministic across runs.
 - Per zone emit a feature with:
   - `layer: "restriction"`, `name`, `verneform`, `naturvernId`, `faktaark`,
   - `restrictions` (the raw `restriksjonerBeskrivelse` — shown verbatim in the popup),
   - `windows` = `parseRestrictionWindows(restrictions)` (array of `{from,to}`),
   - `year_round` = true if any window is `01-01`→`12-31`,
   - `drones_explicit` = `/modellfly/i.test(restrictions)` (for a "also applies to drones" note),
-  - `rule` = a plain-language summary built from the restriction text.
+  - `rule` = a short plain-language lead-in shown above the verbatim text, e.g.
+    `"Flight ban inside a protected area. The official restriction(s) and dates:"`
+    (the verbatim `restrictions` text follows as the authoritative detail). Keep it
+    generic — the per-zone specifics live in `restrictions`, so `rule` is just framing.
 - Write `data/restrictions.geojson`. Add the step to the pipeline runner.
 
 ### 3. Map layer — `app.js`
@@ -116,9 +124,9 @@ export function parseRestrictionWindows(text) { /* regex /(\d{1,2})\.(\d{1,2})\s
   `{ id: "restriction", name: "Protected-area flight bans", color: COLORS.restriction,
      on: true, file: "restrictions", blocking: true, severity: "nofly", stroke: "#7a0010", weight: 2 }`
   (placed after the seabird entry). It is `blocking` so the spot-check treats it as no-fly.
-- **Date-aware** (reuse the seabird approach): a zone is "active now" if any of its
-  `windows` is active today (or `year_round`). `styleFor` gives active zones a bolder/
-  more-opaque fill; dormant ones lighter (rare — most carry a year-round low-fly/landing ban).
+- **Date-aware** via `windowsActive(p.windows, p.year_round, new Date())` (the §1
+  wrapper): `styleFor` gives active zones a bolder/more-opaque fill; dormant ones lighter
+  (rare — most carry a year-round low-fly/landing ban, so are always active).
 - Popup (`popupHtml`) and verdict (`renderHit`) show the exact `restrictions` text, an
   active/dormant line, the "🛩️ also applies to drones" note when `drones_explicit`, and
   the Factsheet link. Reuse/extend the existing `nestingStatusHtml` pattern (generalize
@@ -137,7 +145,9 @@ export function parseRestrictionWindows(text) { /* regex /(\d{1,2})\.(\d{1,2})\s
 - `sw.js`: add `./data/restrictions.geojson` to `SHELL_ASSETS`; bump `SHELL_CACHE`.
 - `app.js` `init`: add `"restrictions"` to the data `files` array.
 - `config.json`: add the `restrictions_arcgis` source URL.
-- `README.md`: add a "Protected-area flight bans" layer row.
+- `README.md`: add a "Protected-area flight bans" layer row, mirroring the Nature row —
+  cite Miljødirektoratet / **official government data**, and note the civilian-only scope
+  (military `_forsvaret` zones deliberately excluded).
 
 ### 6. Rebuild & verify
 
