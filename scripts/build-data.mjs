@@ -10,7 +10,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { parseRestrictionWindows } from "../season.mjs";
-import { fetchOk, requireFeatures, hasMorePages } from "./source-utils.mjs";
+import { fetchOk, requireFeatures, requireNonEmpty, hasMorePages } from "./source-utils.mjs";
 import { sensitiveFeatures } from "../sensitive.mjs";
 import { nsmZoneFeatures } from "../nsm.mjs";
 
@@ -146,6 +146,7 @@ async function buildAirports() {
       },
     });
   }
+  requireNonEmpty(features, "Airports");
   await save("airports.geojson", features, "Airports");
 }
 
@@ -169,6 +170,12 @@ const CLASS_META = {
   C: { category: "controlled", label: "Controlled airspace (TMA/CTA)",
        rule: "Controlled airspace, high floor — context only, generally above the 120 m drone ceiling." },
 };
+
+// The airspace categories that are real no-fly / permission zones (the BLOCKING airspace
+// defs in app.js LAYER_DEFS). One airspace.geojson feeds these AND non-blocking context
+// (controlled/airsport/exercise), so a non-empty FILE doesn't prove the no-fly data
+// survived — the build guards this blocking SUBSET. Keep in sync with app.js.
+const NOFLY_AIRSPACE = new Set(["ctr", "tiz", "restricted", "danger"]);
 
 async function buildAirspace() {
   const data = await (await fetchOk(SRC.airspace_geojson)).json();
@@ -219,6 +226,10 @@ async function buildAirspace() {
       },
     });
   }
+  // Guard the no-fly SUBSET, not just the file: a reshaped upstream that left only
+  // non-blocking context (controlled/airsport) would pass a whole-file check while every
+  // real no-fly zone silently vanished. (A non-empty subset implies a non-empty file.)
+  requireNonEmpty(features.filter(f => NOFLY_AIRSPACE.has(f.properties.category)), "Airspace no-fly zones");
   await save("airspace.geojson", features, "Airspace");
 }
 
@@ -305,6 +316,7 @@ async function buildNature() {
     offset += batch.length;
     if (++pages >= MAX_PAGES) throw new Error(`Nature: pagination did not terminate after ${MAX_PAGES} pages (server ignoring resultOffset?)`);
   }
+  requireNonEmpty(features, "Nature");
   await save("nature.geojson", features, "Nature reserves & parks");
 }
 
@@ -480,6 +492,7 @@ out tags center;`;
       },
     });
   }
+  requireNonEmpty(features, "Prisons");
   await save("prisons.geojson", features, "Prisons");
 }
 
@@ -539,13 +552,17 @@ async function buildRestrictions() {
       if (++pages >= MAX_PAGES) throw new Error(`Restrictions: pagination did not terminate after ${MAX_PAGES} pages (server ignoring resultOffset?)`);
     }
   }
-  await save("restrictions.geojson", [...byId.values()], "Protected-area flight bans");
+  const out = [...byId.values()];
+  requireNonEmpty(out, "Restrictions");
+  await save("restrictions.geojson", out, "Protected-area flight bans");
 }
 
 // ---------- 8. Military / sensitive sites (NSM advisory) ----------
 // Curated, hand-verified installations rendered as advisory DOTS that complement
 // the real NSM sensor-ban zone polygons (buildNsmZones / the `nsm` layer).
-// Fully offline/deterministic: just transforms config.sensitive into GeoJSON.
+// Fully offline/deterministic: just transforms config.sensitive into GeoJSON. Advisory
+// (non-blocking) and config-driven, so no requireNonEmpty guard — an empty list is a
+// legitimate config state here, not a broken-source signal.
 async function buildSensitive() {
   const s = config.sensitive || {};
   const feats = sensitiveFeatures(s.sites || [], { nsm_url: s.nsm_url || "" });
@@ -557,8 +574,8 @@ async function buildSensitive() {
 // intersecting the region. Permission to operate a camera/sensor drone inside one is
 // obtained by registering with NSM (config.sensitive.nsm_url). Pages through the result
 // (like buildNature/buildRestrictions) so a region with more zones than the server's
-// page size is fetched whole, not silently truncated; requireFeatures + a zero-length
-// guard keep a broken/empty response from ever overwriting the good no-fly layer.
+// page size is fetched whole, not silently truncated; requireFeatures + requireNonEmpty
+// keep a broken/empty response from ever overwriting the good no-fly layer.
 async function buildNsmZones() {
   const nsm_url = config.sensitive?.nsm_url || "";
   const features = [];
@@ -585,7 +602,7 @@ async function buildNsmZones() {
     offset += batch.length;
     if (++pages >= MAX_PAGES) throw new Error(`NSM zones: pagination did not terminate after ${MAX_PAGES} pages (server ignoring resultOffset?)`);
   }
-  if (features.length === 0) throw new Error("NSM zones: 0 features in region (broken query?)");
+  requireNonEmpty(features, "NSM zones");
   await save("nsm.geojson", features, "NSM sensor-ban zones");
 }
 

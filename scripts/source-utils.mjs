@@ -23,6 +23,21 @@ export function requireFeatures(data, label) {
   return data.features;
 }
 
+// Final guard on a fully-built BLOCKING (no-fly) layer: it must not be empty. requireFeatures
+// allows a valid empty *page* mid-pagination, but a layer that ends up with ZERO features in
+// this fixed region (which is known to contain airports, airspace, reserves, restrictions,
+// prisons and NSM zones) is almost always a broken/empty source response — not a real
+// "nothing here". Silently writing it would overwrite the good data and make the spot-check
+// answer a confident "clear" over real restrictions (the worst outcome for this tool). Throw,
+// naming the layer, so the build fails loudly and the previous good file is kept. Advisory
+// (non-blocking) layers can be legitimately sparse, so they are intentionally NOT guarded.
+export function requireNonEmpty(features, label) {
+  if (!Array.isArray(features) || features.length === 0) {
+    throw new Error(`${label}: 0 features after build — empty/broken source? Refusing to overwrite the good no-fly data.`);
+  }
+  return features;
+}
+
 // Did ArcGIS truncate this page (more records remain)? ArcGIS signals it via
 // `exceededTransferLimit` — but the flag's LOCATION depends on the output format:
 //   f=json    → top-level `data.exceededTransferLimit`

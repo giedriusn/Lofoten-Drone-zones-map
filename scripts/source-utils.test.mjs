@@ -4,7 +4,7 @@
 // no-fly GeoJSON (which would make the map under-report restrictions).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fetchOk, requireFeatures, hasMorePages } from "./source-utils.mjs";
+import { fetchOk, requireFeatures, requireNonEmpty, hasMorePages } from "./source-utils.mjs";
 
 test("fetchOk: returns the response on a 2xx status", async () => {
   const res = { ok: true, status: 200 };
@@ -28,6 +28,23 @@ test("requireFeatures: throws on an ArcGIS error object (HTTP 200, no features a
   assert.throws(() => requireFeatures({ error: { code: 500 } }, "Restrictions"), /Restrictions/);
   assert.throws(() => requireFeatures(null, "Nature"));
   assert.throws(() => requireFeatures({}, "Nature"));
+});
+
+test("requireNonEmpty: throws on an empty layer (would silently overwrite a no-fly file)", () => {
+  // requireFeatures allows a valid empty PAGE mid-pagination; requireNonEmpty is the
+  // FINAL guard on the accumulated layer. A blocking no-fly layer that ends up empty is
+  // almost always a broken/empty source, not a real "nothing here" — writing it would
+  // overwrite the good data and make the spot-check answer a confident "clear" over real
+  // restrictions (the worst outcome for this tool). It must fail the build loudly so the
+  // previous good file is kept.
+  assert.throws(() => requireNonEmpty([], "Prisons"), /Prisons/);
+  assert.throws(() => requireNonEmpty(null, "Nature"), /Nature/);
+  assert.throws(() => requireNonEmpty(undefined, "Airspace"), /Airspace/);
+});
+
+test("requireNonEmpty: returns the features unchanged when non-empty", () => {
+  const feats = [{ a: 1 }, { b: 2 }];
+  assert.equal(requireNonEmpty(feats, "NSM zones"), feats);
 });
 
 test("hasMorePages: detects the top-level flag (f=json shape)", () => {
