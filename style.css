@@ -24,6 +24,7 @@
   --c-prison: #d6447d;
   --c-exercise: #9a6fb0;
   --c-nsm: #7c8aa3;
+  --c-nsm-zone: #b5179e;
 
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -375,7 +376,7 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
 }
 
 /* Military / sensitive-site marker — a diamond (rotated square), distinct from the
-   round dots; deliberately NO ring (these are NOT drawn NSM zones). */
+   round dots; deliberately NO ring (advisory dots, not the drawn NSM zone polygons). */
 .sensitive-icon {
   width: 14px; height: 14px;
   background: var(--c-nsm);

@@ -25,6 +25,7 @@ const COLORS = {
   restriction: "#ff2238", // protected-area flight ban = strict no-fly (red); dark solid edge
   controlled: "#8aa0b6",  // context (high) → grey
   sensitive: "#7c8aa3", // military/sensitive site (advisory) → NSM grey-blue
+  nsm: "#b5179e",       // NSM sensor/photo-ban zone (real polygon) → purple, distinct from the grey sensitive dots
 };
 
 // Layer definitions: how each is sourced from the data files, styled, and labelled.
@@ -43,6 +44,7 @@ const LAYER_DEFS = [
   { id: "seabird", name: "Seabird reserves (nesting ban)", color: COLORS.seabird, on: true, file: "nature", match: p => p.seabird, dashed: true, blocking: true, severity: "nofly", stroke: "#7a0010", weight: 2 },
   { id: "restriction", name: "Protected-area flight bans", color: COLORS.restriction, on: true, file: "restrictions", blocking: true, severity: "nofly", stroke: "#5a000c", weight: 2.4 },
   { id: "prison", name: "Prisons", color: COLORS.prison, on: true, file: "prisons", blocking: true, severity: "permission" },
+  { id: "nsm", name: "NSM sensor/photo-ban zones", color: COLORS.nsm, on: true, file: "nsm", blocking: true, severity: "permission", stroke: "#6a0f5e", weight: 2 },
   { id: "sensitive", name: "Military / sensitive sites", color: COLORS.sensitive, on: true, file: "sensitive", blocking: false, severity: "permission" },
   { id: "helipad", name: "Hospital / HEMS helipads", color: COLORS.helipad, on: true, file: "helipads", blocking: false, severity: "caution" },
   { id: "airsport", name: "Air sports areas", color: COLORS.airsport, on: false, file: "airspace", match: p => p.category === "airsport", blocking: false, severity: "caution", stroke: "#7a5200", weight: 2 },
@@ -95,7 +97,7 @@ async function init() {
   // bad layer never blanks the whole map — but the failure is recorded (resp.ok AND a
   // real features array are both required) so a missing no-fly layer can't masquerade
   // as "nothing here" in the verdict.
-  const files = ["airports", "airspace", "nature", "populated", "helipads", "prisons", "restrictions", "sensitive"];
+  const files = ["airports", "airspace", "nature", "populated", "helipads", "prisons", "restrictions", "sensitive", "nsm"];
   const data = {};
   const failedFiles = [];
   await Promise.all(files.map(async f => {
@@ -312,6 +314,7 @@ function typeLabel(def, p) {
   if (def.id === "prison") return "Prison";
   if (def.id === "restriction") return "Protected-area flight ban";
   if (def.id === "sensitive") return "Military / sensitive site";
+  if (def.id === "nsm") return "NSM sensor/photo-ban zone";
   return def.name;
 }
 
