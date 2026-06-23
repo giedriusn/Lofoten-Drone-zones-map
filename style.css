@@ -15,6 +15,7 @@
   --c-danger: #ff2238;
   --c-controlled: #8aa0b6;
   --c-reserve: #ff2238;
+  --c-seabird: #ff2238;
   --c-park: #c1121f;
   --c-populated: #4d8fd6;
   --c-airsport: #ffc400;
@@ -214,6 +215,7 @@ ul.gloss .chip {
   border: 1px solid rgba(255, 255, 255, .3);
 }
 ul.gloss .chip--ring { border-radius: 50%; }
+ul.gloss .chip--dashed { border: 1.5px dashed #7a0010; }
 ul.gloss b { display: block; color: var(--text); margin-bottom: 2px; }
 ul.gloss .gloss-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
 ul.gloss .gloss-title b { display: inline; margin: 0; }
@@ -342,6 +344,14 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
   animation: locate-spin .7s linear infinite;
 }
 @keyframes locate-spin { to { transform: rotate(360deg); } }
+
+/* Nesting status lines (popup + verdict) */
+.nesting { margin-top: 6px; border-radius: 6px; padding: 4px 8px; font-weight: 600; }
+.nesting--on { background: rgba(255,34,56,.14); border: 1px solid rgba(255,34,56,.45); color: #ff9aab; }
+.nesting--off { background: rgba(138,160,182,.12); border: 1px solid rgba(138,160,182,.30); color: #b7c4d2; font-weight: 500; }
+
+/* Seabird reserve marker */
+.seabird-icon { font-size: 13px; line-height: 16px; text-align: center; pointer-events: none; }
 
 /* Helipad marker badge */
 .helipad-icon span {
