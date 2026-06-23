@@ -29,6 +29,19 @@
     "_comment": "Flying over/near a prison needs permission (BSL A 7-2 §7); the law sets no distance. advisory_m is a pragmatic 'keep clear' caution radius for the spot-check, NOT a legal boundary.",
     "advisory_m": 300
   },
+  "sensitive": {
+    "_comment": "Curated, hand-verified military/sensitive installations shown as advisory dots — NOT NSM zones (no open feed for those). Every surface points to NSM's own map. notify_km = how close the spot-check must be before it nudges you to check NSM.",
+    "nsm_url": "https://nsm.no/tjenester/kart-over-forbudsomrader-for-luftbarne-sensorsystemer/",
+    "notify_km": 20,
+    "sites": [
+      { "name": "Bodø air station",       "lat": 67.2692, "lon": 14.3653 },
+      { "name": "Andøya air station",     "lat": 69.2925, "lon": 16.1441 },
+      { "name": "Evenes air station",     "lat": 68.4913, "lon": 16.6782 },
+      { "name": "Bardufoss air station",  "lat": 69.0558, "lon": 18.5403 },
+      { "name": "Ramsund naval station",  "lat": 68.4866, "lon": 16.5320 },
+      { "name": "Sortland (Coast Guard)", "lat": 68.6986, "lon": 15.4136 }
+    ]
+  },
   "sources": {
     "airports_csv": "https://davidmegginson.github.io/ourairports-data/airports.csv",
     "airspace_geojson": "https://raw.githubusercontent.com/relet/pg-xc/master/geojson/luftrom.geojson",
