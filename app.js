@@ -3,7 +3,7 @@
    "can I fly at this point?" via point-in-polygon / distance checks. */
 
 import { registerServiceWorker, kartverketBasemap, setupOfflineUI } from "./offline.mjs";
-import { featureContains, nearestPointOnFeature, bearingTo, fmtDist } from "./geometry.mjs";
+import { featureContains, nearestPointOnFeature, bearingTo, fmtDist, haversine } from "./geometry.mjs";
 import { nestingActive, windowsActive } from "./season.mjs";
 
 const COLORS = {
@@ -535,12 +535,26 @@ function analyzePoint(latlng) {
     }
   }
 
+  // Nearest military/sensitive site — advisory only (non-blocking), surfaced when
+  // within notify_km so a sensor-ban near a base prompts an NSM check. Never a hit.
+  let nearestSensitive = null;
+  const notifyM = (config.sensitive?.notify_km ?? 0) * 1000;
+  if (notifyM > 0) {
+    for (const { feature: f } of (featuresByLayer.sensitive || [])) {
+      const [flon, flat] = f.geometry.coordinates;
+      const d = haversine(lat, lng, flat, flon);
+      if (d <= notifyM && (!nearestSensitive || d < nearestSensitive.distM)) {
+        nearestSensitive = { p: f.properties, distM: d, bearing: bearingTo(lat, lng, [flat, flon]) };
+      }
+    }
+  }
+
   if (pickMarker) map.removeLayer(pickMarker);
   // A GPS accuracy ring belongs only to a located point — clear it on every (re)analyze.
   if (accuracyCircle) { map.removeLayer(accuracyCircle); accuracyCircle = null; }
   pickMarker = L.circleMarker(latlng, { radius: 7, color: "#fff", weight: 2, fillColor: "#4ea1ff", fillOpacity: 1 }).addTo(map);
 
-  renderResult(latlng, hits, nearest);
+  renderResult(latlng, hits, nearest, nearestSensitive);
 }
 
 // "Locate me" — one-shot GPS fix → centre, mark, and run the spot check for where
@@ -621,7 +635,7 @@ function showResultMessage(html) {
   document.getElementById("result").classList.remove("result--hidden");
 }
 
-function renderResult(latlng, hits, nearest) {
+function renderResult(latlng, hits, nearest, nearestSensitive) {
   const body = document.getElementById("resultBody");
   // Context-only hits do NOT legally block a drone flown at/below 120 m:
   //  - "controlled" = high-altitude TMA/CTA (floor above the drone ceiling)
@@ -665,6 +679,15 @@ function renderResult(latlng, hits, nearest) {
     ? `<div class="nearest">Nearest restriction: <strong>${esc(nearest.p.name || nearest.def.name)}</strong> — ${fmtDist(nearest.distM)} ${nearest.bearing}</div>`
     : "";
 
+  // Advisory — independent of the verdict (a sensor-ban can apply even on an
+  // otherwise-clear spot). Never a no-fly; always routes to NSM's own map.
+  const sensitiveHtml = nearestSensitive
+    ? `<div class="nearest nearest--sensitive">⚠️ Nearest military / sensitive site:
+        <strong>${esc(nearestSensitive.p.name)}</strong> — ${fmtDist(nearestSensitive.distM)} ${nearestSensitive.bearing}.
+        Photo/sensor bans may apply nearby —
+        <a href="${esc(safeUrl(nearestSensitive.p.nsm_url))}" target="_blank" rel="noopener">check NSM map ↗</a>.</div>`
+    : "";
+
   const clearNote = !blocking.length
     ? `<div class="hit__rule">No airport/control/traffic zone, restricted or danger area, protected area, or prison covers this point at drone altitude. Standard rules still apply: max 120 m above the surface, keep clear of people, check NOTAMs.</div>
        <div class="hit__rule wildlife">🐦 Wildlife rule (everywhere, even here): under <em>naturmangfoldloven §15</em> you must not disturb wildlife — especially nesting birds. Don't fly low over animals, flocks or nests.</div>`
@@ -673,7 +696,7 @@ function renderResult(latlng, hits, nearest) {
     ? `<div class="hit__section">Context / advisory (not a no-fly below 120 m)</div>` + context.map(renderHit).join("")
     : "";
 
-  body.innerHTML = verdict + blockHtml + nearestHtml + clearNote + contextHtml +
+  body.innerHTML = verdict + blockHtml + nearestHtml + sensitiveHtml + clearNote + contextHtml +
     `<div class="coords">${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}</div>`;
   document.getElementById("result").classList.remove("result--hidden");
 }

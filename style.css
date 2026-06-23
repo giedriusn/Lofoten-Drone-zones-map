@@ -296,6 +296,8 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
 .hit__section { font-size: 10.5px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin: 12px 0 2px; opacity: .8; }
 .nearest { font-size: 12.5px; color: var(--text); margin: 8px 0 2px; padding: 8px 10px; background: var(--panel-soft); border-radius: 8px; border: 1px solid var(--line); }
 .nearest strong { color: #ffcf7a; }
+.nearest--sensitive { background: rgba(124, 138, 163, .12); border-color: rgba(124, 138, 163, .45); color: #c2cee0; }
+.nearest--sensitive strong { color: #dbe6f4; }
 .hit__rule.wildlife { margin-top: 8px; padding: 8px 10px; background: rgba(52,199,89,.08); border: 1px solid rgba(52,199,89,.25); border-radius: 8px; color: #b9f0c6; }
 .coords { font-size: 11px; color: var(--muted); margin-top: 8px; }
 
