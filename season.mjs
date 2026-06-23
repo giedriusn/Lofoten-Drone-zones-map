@@ -13,3 +13,26 @@ export function nestingActive(from, to, today = new Date()) {
   const now = (today.getMonth() + 1) * 100 + today.getDate();
   return f <= t ? now >= f && now <= t : now >= f || now <= t;
 }
+
+// Parse Norwegian restriction date ranges ("15.4-31.7", "1.1-31.12") out of the
+// official restriksjonerBeskrivelse text into {from,to} "MM-DD" windows. The text is
+// day.month-day.month; a zone may list several ranges (one per restriction). "1.1-31.12"
+// is a year-round ban. "< 300 m" and other non-range numbers are ignored (no D.M-D.M).
+export function parseRestrictionWindows(text) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const out = [];
+  const re = /(\d{1,2})\.(\d{1,2})\s*-\s*(\d{1,2})\.(\d{1,2})/g;
+  let m;
+  while ((m = re.exec(text || "")) !== null) {
+    const [, d1, mo1, d2, mo2] = m;
+    out.push({ from: `${pad(mo1)}-${pad(d1)}`, to: `${pad(mo2)}-${pad(d2)}` });
+  }
+  return out;
+}
+
+// A restriction zone is "in force today" if it is year-round or any of its windows is
+// active now. Bridges the windows[] array shape to the scalar nestingActive helper.
+export function windowsActive(windows, yearRound, today = new Date()) {
+  if (yearRound) return true;
+  return Array.isArray(windows) && windows.some((w) => nestingActive(w.from, w.to, today));
+}

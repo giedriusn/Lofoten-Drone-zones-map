@@ -32,3 +32,35 @@ test("missing window → not active (never assert a ban we can't bound)", () => 
   assert.equal(nestingActive(null, null, on("2026-06-23")), false);
   assert.equal(nestingActive("04-15", "", on("2026-06-23")), false);
 });
+
+// --- protected-area restriction windows ---
+import { parseRestrictionWindows, windowsActive } from "../season.mjs";
+
+test("parseRestrictionWindows: single d.m-d.m range → MM-DD window", () => {
+  assert.deepEqual(parseRestrictionWindows("Ferdselsforbud (15.4-31.7)"),
+    [{ from: "04-15", to: "07-31" }]);
+});
+test("parseRestrictionWindows: year-round 1.1-31.12", () => {
+  assert.deepEqual(parseRestrictionWindows("Lavflyving forbudt (1.1-31.12)"),
+    [{ from: "01-01", to: "12-31" }]);
+});
+test("parseRestrictionWindows: multiple ranges, ignores '< 300 m'", () => {
+  assert.deepEqual(
+    parseRestrictionWindows("Ferdselsforbud (1.3-31.7), Lavflyving forbudt (< 300 m) (1.1-31.12)"),
+    [{ from: "03-01", to: "07-31" }, { from: "01-01", to: "12-31" }]);
+});
+test("parseRestrictionWindows: no dates → []", () => {
+  assert.deepEqual(parseRestrictionWindows("Ferdselsforbud"), []);
+  assert.deepEqual(parseRestrictionWindows(""), []);
+});
+test("windowsActive: year-round is always active", () => {
+  assert.equal(windowsActive([], true, on("2026-01-10")), true);
+});
+test("windowsActive: true if any window active today", () => {
+  const w = [{ from: "04-15", to: "07-31" }, { from: "11-01", to: "12-01" }];
+  assert.equal(windowsActive(w, false, on("2026-06-23")), true);
+  assert.equal(windowsActive(w, false, on("2026-09-01")), false);
+});
+test("windowsActive: no windows, not year-round → false", () => {
+  assert.equal(windowsActive([], false, on("2026-06-23")), false);
+});
