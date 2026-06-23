@@ -9,6 +9,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { parseRestrictionWindows } from "../season.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -472,6 +473,66 @@ out tags center;`;
   await save("prisons.geojson", features, "Prisons");
 }
 
+// ---------- 7. Protected-area flight restriction zones ----------
+// Naturbase vern_restriksjonsomrader: the exact restriction zones INSIDE protected
+// areas. Civilian layers only — 0 ferdselsforbud (access ban), 1 lavflyving<300m
+// (low flying banned — text says "Gjelder også bruk av modellfly" = incl. drones),
+// 2 landingsforbud. The _forsvaret (3,4) layers restrict MILITARY aircraft, not
+// civilian drones, so they are intentionally excluded.
+async function buildRestrictions() {
+  const byId = new Map(); // vernRestriksjonId -> feature; keep the longest (most complete) description
+  for (const lyr of [0, 1, 2]) {
+    let offset = 0;
+    const page = 1000;
+    for (;;) {
+      const params = new URLSearchParams({
+        where: "1=1",
+        geometry: `${W},${S},${E},${N}`,
+        geometryType: "esriGeometryEnvelope",
+        inSR: "4326", outSR: "4326",
+        spatialRel: "esriSpatialRelIntersects",
+        outFields: "vernRestriksjonId,navn,verneform,faktaark,restriksjoner,restriksjonerBeskrivelse",
+        f: "geojson",
+        maxAllowableOffset: "0.0001",
+        geometryPrecision: "6",
+        resultOffset: String(offset),
+        resultRecordCount: String(page),
+      });
+      const data = await (await fetch(`${SRC.restrictions_arcgis}/${lyr}/query?${params}`)).json();
+      const batch = data.features || [];
+      for (const f of batch) {
+        const p = f.properties || {};
+        const id = p.vernRestriksjonId ?? f.id;
+        const desc = p.restriksjonerBeskrivelse || "";
+        const prev = byId.get(id);
+        // dedup across layers: keep longest description; tie → first seen (deterministic)
+        if (prev && (prev.properties.restrictions || "").length >= desc.length) continue;
+        const windows = parseRestrictionWindows(desc);
+        byId.set(id, {
+          type: "Feature",
+          geometry: f.geometry,
+          properties: {
+            layer: "restriction",
+            name: p.navn || "",
+            verneform: p.verneform || "",
+            restrictions: desc,
+            windows,
+            year_round: windows.some(w => w.from === "01-01" && w.to === "12-31"),
+            drones_explicit: /modellfly/i.test(desc),
+            factsheet: p.faktaark || "",
+            rule: "Flight ban inside a protected area. The official restriction(s) and dates:",
+          },
+        });
+      }
+      const more = data.exceededTransferLimit === true ||
+        (data.exceededTransferLimit === undefined && batch.length === page);
+      if (!more || batch.length === 0) break;
+      offset += batch.length;
+    }
+  }
+  await save("restrictions.geojson", [...byId.values()], "Protected-area flight bans");
+}
+
 // ---------- run ----------
 
 console.log(`Building drone-restriction data for: ${config.region.name}`);
@@ -484,6 +545,7 @@ const steps = [
   ["Populated", buildPopulated],
   ["Helipads", buildHelipads],
   ["Prisons", buildPrisons],
+  ["Restrictions", buildRestrictions],
 ];
 
 let failures = 0;
