@@ -25,6 +25,7 @@ military danger areas, protected nature, and built-up areas.
 | **Hospital / HEMS helipads** | Air-ambulance helipads (Bodø, Narvik, Stokmarknes, Harstad, Værøy). | [OpenStreetMap](https://www.openstreetmap.org/) | Crowd-sourced |
 | **Air sports areas** | Paraglider/parachute/GA activity areas (AIP ENR 5.5). Off by default — advisory hazard. | luftrom.info | AIP-derived |
 | **Nature reserves & parks** | National parks, nature reserves, landscape & marine protected areas; seabird reserves flagged for the seasonal nesting ban. | [Miljødirektoratet](https://kart.miljodirektoratet.no/) | **Official government data** |
+| **Protected-area flight bans** | Exact restriction zones inside protected areas — access bans (ferdselsforbud), low-flying-under-300 m (includes drones) and landing bans, with the official per-zone dates. Civilian zones only; military (Forsvaret) zones excluded. | [Miljødirektoratet](https://kart.miljodirektoratet.no/) | **Official government data** |
 | **Prisons** | Prisons (Bodø, Fauske) with a small advisory ring — flying over/near needs permission (BSL A 7-2 §7); the law sets no fixed distance. | OpenStreetMap | Crowd-sourced |
 | **Populated areas** | Towns/villages + residential land. Off by default. | OpenStreetMap | Crowd-sourced |
 | **Controlled airspace (high)** | TMA/CTA (high floor). Off by default — context only, above the 120 m drone ceiling. | luftrom.info | AIP-derived |
