@@ -12,6 +12,7 @@ import { dirname, join } from "node:path";
 import { parseRestrictionWindows } from "../season.mjs";
 import { fetchOk, requireFeatures } from "./source-utils.mjs";
 import { sensitiveFeatures } from "../sensitive.mjs";
+import { nsmZoneFeatures } from "../nsm.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -545,6 +546,32 @@ async function buildSensitive() {
   await save("sensitive.geojson", feats, "Military / sensitive sites");
 }
 
+// ---------- 9. NSM sensor-ban zones (real published polygons) ----------
+// NSM's public ArcGIS feed — the same data NSM's own map reads. Clipped to the
+// region. Permission to operate a camera/sensor drone inside one is obtained by
+// registering with NSM (config.sensitive.nsm_url). Fails loudly (transfer-limit +
+// requireFeatures + zero-length guards) so a broken/paged query never ships an
+// empty or truncated no-fly layer.
+async function buildNsmZones() {
+  const nsm_url = config.sensitive?.nsm_url || "";
+  const params = new URLSearchParams({
+    where: "1=1",
+    geometry: `${W},${S},${E},${N}`,
+    geometryType: "esriGeometryEnvelope",
+    inSR: "4326",
+    spatialRel: "esriSpatialRelIntersects",
+    outFields: "navn,typeforbud,refnr",
+    outSR: "4326",
+    returnGeometry: "true",
+    f: "geojson",
+  });
+  const data = await (await fetchOk(`${SRC.nsm_zones_arcgis}/query?${params}`)).json();
+  if (data.exceededTransferLimit) throw new Error("NSM zones: server paged the result (raise page size / add paging)");
+  const src = requireFeatures(data, "NSM zones");
+  if (src.length === 0) throw new Error("NSM zones: 0 features in region (broken query?)");
+  await save("nsm.geojson", nsmZoneFeatures(data, { nsm_url }), "NSM sensor-ban zones");
+}
+
 // ---------- run ----------
 
 console.log(`Building drone-restriction data for: ${config.region.name}`);
@@ -559,6 +586,7 @@ const steps = [
   ["Prisons", buildPrisons],
   ["Restrictions", buildRestrictions],
   ["Sensitive sites", buildSensitive],
+  ["NSM zones", buildNsmZones],
 ];
 
 let failures = 0;

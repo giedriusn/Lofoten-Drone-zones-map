@@ -47,6 +47,7 @@
     "airspace_geojson": "https://raw.githubusercontent.com/relet/pg-xc/master/geojson/luftrom.geojson",
     "nature_arcgis": "https://kart.miljodirektoratet.no/arcgis/rest/services/vern/MapServer/0/query",
     "restrictions_arcgis": "https://kart.miljodirektoratet.no/arcgis/rest/services/vern_restriksjonsomrader/MapServer",
+    "nsm_zones_arcgis": "https://services9.arcgis.com/qCxEdsGu1A7NwfY1/ArcGIS/rest/services/Forbudsomr%C3%A5derNSM_v/FeatureServer/0",
     "_overpass_note": "first array entry tried first; others are fallback mirrors. Western full-planet instances only — all require a User-Agent (set in build-data.mjs).",
     "overpass": [
       "https://overpass-api.de/api/interpreter",
