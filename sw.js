@@ -1,11 +1,11 @@
 /* Service worker — offline app shell + map tiles. Classic worker for iOS support. */
-const SHELL_CACHE = "drone-shell-v17";
+const SHELL_CACHE = "drone-shell-v18";
 const TILE_CACHE = "drone-tiles-v1"; // NOT version-bumped: tiles are large & stable.
 
 const SHELL_ASSETS = [
   "./", "./index.html", "./app.js", "./style.css", "./config.json",
   "./manifest.webmanifest", "./offline.mjs", "./tiles.mjs", "./geometry.mjs", "./season.mjs",
-  "./data-health.mjs",
+  "./data-health.mjs", "./features.mjs",
   "./vendor/leaflet.js", "./vendor/leaflet.css",
   "./vendor/images/layers.png", "./vendor/images/layers-2x.png",
   "./vendor/images/marker-icon.png", "./vendor/images/marker-icon-2x.png",

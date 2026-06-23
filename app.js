@@ -4,6 +4,7 @@
 
 import { registerServiceWorker, kartverketBasemap, setupOfflineUI } from "./offline.mjs";
 import { featureContains, nearestPointOnFeature, bearingTo, fmtDist, haversine } from "./geometry.mjs";
+import { layerFeatures } from "./features.mjs";
 import { nestingActive, windowsActive } from "./season.mjs";
 import { unloadedBlockingLayers } from "./data-health.mjs";
 
@@ -113,7 +114,31 @@ async function init() {
     }
   }));
 
-  for (const def of LAYER_DEFS) buildLayer(def, data[def.file]);
+  for (const def of LAYER_DEFS) {
+    try {
+      const dropped = buildLayer(def, data[def.file]);
+      // A blocking no-fly layer that had to DROP malformed feature(s) is missing real zones
+      // we can't render or spot-check. Treat that gap exactly like a failed load so the
+      // verdict downgrades to "can't confirm" — silently keeping the survivors would let a
+      // click inside a dropped zone read a false "clear". (Non-blocking layers don't drive
+      // the verdict, so a drop there is harmless and is left unflagged.)
+      if (dropped > 0 && def.blocking && !failedFiles.includes(def.file)) {
+        console.warn(`Layer "${def.id}": dropped ${dropped} malformed feature(s); flagging ${def.file} as incomplete.`);
+        failedFiles.push(def.file);
+      }
+    } catch (err) {
+      // Last-resort guard: features.mjs already drops the malformed shapes, but if a layer
+      // still throws while rendering (e.g. a geometry Leaflet can't parse) it must NOT blank
+      // the whole map or abort init before the downgrade below runs. Skip it with an empty
+      // group/stash (so the spot-check loop stays safe) and treat its file as failed, so a
+      // blocking layer's gap downgrades the verdict instead of reading a false "clear".
+      console.error(`Layer "${def.id}" failed to build:`, err);
+      groups[def.id] = groups[def.id] || L.layerGroup();
+      featuresByLayer[def.id] = featuresByLayer[def.id] || [];
+      def.count = def.count ?? 0;
+      if (!failedFiles.includes(def.file)) failedFiles.push(def.file);
+    }
+  }
   // Surface any blocking no-fly layer that failed to load — a silent gap would make the
   // spot-check answer "clear" over a real restriction (the worst outcome for this tool).
   missingBlockingLayers = unloadedBlockingLayers(LAYER_DEFS, failedFiles);
@@ -187,7 +212,11 @@ function setupBasemaps() {
 function buildLayer(def, fc) {
   const group = L.layerGroup();
   const stash = [];
-  const feats = (fc.features || []).filter(f => !def.match || def.match(f.properties));
+  // Drop malformed features (null geometry / properties, bad coordinates) instead of
+  // letting one throw and blank the whole map — see features.mjs. def.match is applied
+  // safely inside, after the bad ones are gone. `dropped` is returned so init() can flag a
+  // blocking layer's gap and downgrade the verdict rather than silently lose a no-fly zone.
+  const { features: feats, dropped } = layerFeatures(fc, def);
 
   for (const f of feats) {
     stash.push({ feature: f, def });
@@ -217,6 +246,7 @@ function buildLayer(def, fc) {
   featuresByLayer[def.id] = stash;
   def.count = feats.length;
   if (def.on) group.addTo(map);
+  return dropped;
 }
 
 // Shared advisory/no-fly ring for point features with a radius (airport 5 km zone,
