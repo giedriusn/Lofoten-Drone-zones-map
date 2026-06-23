@@ -52,7 +52,6 @@ Every surface (popup, glossary, spot-check) must convey:
   ```json
   "sensitive_sites": [
     { "name": "Bodø air station",        "lat": 67.269, "lon": 14.365 },
-    { "name": "Reitan (NJHQ)",           "lat": 67.300, "lon": 14.850 },
     { "name": "Andøya air station",      "lat": 69.293, "lon": 16.144 },
     { "name": "Evenes air station",      "lat": 68.491, "lon": 16.678 },
     { "name": "Bardufoss air station",   "lat": 69.056, "lon": 18.540 },
@@ -60,10 +59,11 @@ Every surface (popup, glossary, spot-check) must convey:
     { "name": "Sortland (Coast Guard)",  "lat": 68.700, "lon": 15.420 }
   ]
   ```
-  (Coordinates above are approximate — each is **hand-verified during
-  implementation** before commit. "Bodø" is two points: the air station and the
-  NJHQ bunker at Reitan ~15 km E. Final list = the 6 named sites; Reitan is a
-  second point under the Bodø umbrella.)
+  **Exactly 6 markers, one per named installation.** Coordinates above are
+  approximate — each is **hand-verified during implementation** before commit.
+  NJHQ/Reitan (~15 km E of Bodø) is intentionally **not** a separate marker; the
+  shared popup instead notes that not every sensitive site is marked — the
+  honest framing, and it avoids implying the list is exhaustive.
 - New build step `buildSensitive()` in `scripts/build-data.mjs`: reads the
   config list (no network — fully offline/deterministic, unlike the OSM/ArcGIS
   builds) and writes `data/sensitive.geojson` as Point features with
@@ -72,12 +72,14 @@ Every surface (popup, glossary, spot-check) must convey:
 
 ## Map render (`app.js`)
 
-- New entry in the `LAYERS` array: `{ id: "sensitive", name: "Military /
-  sensitive sites", color: COLORS.sensitive, on: true, file: "sensitive",
-  blocking: false, severity: "permission" }`. On by default (safety), but
-  toggleable.
-- `COLORS.sensitive` = the existing NSM colour (`--c-nsm`, already in
-  `style.css`).
+- New entry in the `LAYER_DEFS` array (the layer list in `app.js`): `{ id:
+  "sensitive", name: "Military / sensitive sites", color: COLORS.sensitive, on:
+  true, file: "sensitive", blocking: false, severity: "permission" }`. On by
+  default (safety), but toggleable.
+- Add `COLORS.sensitive: "#7c8aa3"` to the `COLORS` object in `app.js` — the
+  same hex value as the existing `--c-nsm` CSS var. (`COLORS` is a plain object
+  of hex literals; it does not read CSS variables, so the value is duplicated,
+  matching the existing pattern for every other layer colour.)
 - Rendered as a `circleMarker` (matching prisons/airports dot style) **with no
   ring** — the absence of a radius is deliberate: a circle would read as a
   boundary. Popup via the shared `popupHtml`, text:
@@ -90,10 +92,14 @@ Every surface (popup, glossary, spot-check) must convey:
 
 ## Spot-check integration (`app.js`)
 
-- The "Can I fly here?" result already computes nearest blocking restriction.
-  Add a **separate, non-blocking** readout: the nearest `sensitive` site by
-  straight-line distance + bearing (reusing `bearingTo`/`fmtDist`), rendered as
-  an advisory line — **independent of the OK/no-fly verdict**:
+- The "Can I fly here?" result already computes nearest blocking restriction,
+  but that existing `nearest` scan in `analyzePoint` only considers
+  `def.blocking` layers — so the sensitive layer (`blocking: false`) is invisible
+  to it. The readout therefore needs its **own** distance scan over
+  `featuresByLayer["sensitive"]`. Add a **separate, non-blocking** readout: the
+  nearest `sensitive` site by straight-line distance + bearing (reusing
+  `bearingTo`/`fmtDist`), rendered as an advisory line — **independent of the
+  OK/no-fly verdict**:
   > ⚠️ Nearest military/sensitive site: **Evenes 3.2 km NE** → check NSM map ↗
 - Shown always (not only when clear), because a sensor-ban can apply even inside
   an otherwise-OK spot. Never alters the OK/permission/no-fly verdict.
