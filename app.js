@@ -725,12 +725,17 @@ function renderResult(latlng, hits, nearest, nearestSensitive) {
     : "";
 
   // Advisory — independent of the verdict (a sensor-ban can apply even on an
-  // otherwise-clear spot). Never a no-fly; always routes to NSM's own map.
+  // otherwise-clear spot). Never a no-fly; routes to NSM's own map. The link is
+  // rendered only when the site actually carries an NSM URL (mirrors popupHtml's
+  // guard), so a missing nsm_url degrades to plain advisory text — not a dead
+  // link back to the app.
+  const nsmLink = nearestSensitive?.p.nsm_url
+    ? ` — <a href="${esc(safeUrl(nearestSensitive.p.nsm_url))}" target="_blank" rel="noopener">check NSM map ↗</a>`
+    : "";
   const sensitiveHtml = nearestSensitive
     ? `<div class="nearest nearest--sensitive">⚠️ Nearest military / sensitive site:
         <strong>${esc(nearestSensitive.p.name)}</strong> — ${fmtDist(nearestSensitive.distM)} ${nearestSensitive.bearing}.
-        Photo/sensor bans may apply nearby —
-        <a href="${esc(safeUrl(nearestSensitive.p.nsm_url))}" target="_blank" rel="noopener">check NSM map ↗</a>.</div>`
+        Photo/sensor bans may apply nearby${nsmLink}.</div>`
     : "";
 
   // The wildlife rule is true everywhere regardless of which layers loaded, so it always
@@ -760,7 +765,11 @@ function esc(s) {
 }
 
 // Only allow http(s) links from external data — blocks javascript:/data: URIs.
+// Fails closed: an empty/missing value resolves against location.href to the app's
+// OWN page (a valid https: URL), so guard it explicitly — otherwise a blank link
+// silently points back at the app instead of being neutralised to "#".
 function safeUrl(u) {
+  if (!u) return "#";
   try {
     const url = new URL(u, location.href);
     return /^https?:$/.test(url.protocol) ? url.href : "#";
