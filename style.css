@@ -246,6 +246,10 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
 .dataage { display: block; margin-top: 5px; font-size: 11px; opacity: .85; }
 .disclaimer--wild { margin-top: 8px; background: rgba(52,199,89,.08); border-color: rgba(52,199,89,.28); }
 .disclaimer--wild strong { color: #8fe6a3; }
+.seasonbanner { margin-top: 8px; padding: 8px 10px; font-size: 13px; line-height: 1.4;
+  background: rgba(255,34,56,.10); border: 1px solid rgba(255,34,56,.40);
+  border-radius: 8px; color: #ffb3c0; }
+.seasonbanner strong { color: #ff8aa0; }
 
 /* ---------- Result panel ---------- */
 .result {

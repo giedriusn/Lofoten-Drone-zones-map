@@ -94,6 +94,9 @@ async function init() {
   for (const def of LAYER_DEFS) buildLayer(def, data[def.file]);
   showDataAge(data);
   buildLayerUI();
+  // Show the nesting-season banner only while the seabird access ban is active today.
+  const banner = document.getElementById("seasonBanner");
+  if (banner && nestingActive("04-15", "07-31", new Date())) banner.hidden = false;
   wireControls();
   setupOfflineUI({ config, switchBasemap: basemaps.switchTo });
 
