@@ -5,11 +5,11 @@ Lofoten region of Northern Norway: airport zones, control zones, restricted &
 military danger areas, protected nature, and built-up areas.
 
 > ⚠️ **Not for legal navigation.** The data is assembled from public/community
-> sources and may be incomplete or out of date. It does **not** include temporary
-> restrictions (NOTAMs) or **NSM photo/sensor-ban zones** around military/sensitive
-> sites (NSM publishes those only in its own viewer). Always confirm on
+> sources and may be incomplete or out of date. It now includes **NSM's permanent
+> published photo/sensor-ban zones** (read from NSM's own public feed), but does
+> **not** include temporary restrictions (**NOTAMs**). Always confirm on
 > **[flydrone.no](https://flydrone.no)** / the **SafeToFly** app, check **NOTAMs**,
-> and check **[NSM's sensor-ban map](https://nsm.no/tjenester/kart-over-forbudsomrader-for-luftbarne-sensorsystemer/)**, before every flight.
+> and re-check **[NSM's sensor-ban map](https://nsm.no/tjenester/kart-over-forbudsomrader-for-luftbarne-sensorsystemer/)** (zones can change), before every flight.
 
 ![screenshot](drone-map-final.png)
 
@@ -27,7 +27,8 @@ military danger areas, protected nature, and built-up areas.
 | **Nature reserves & parks** | National parks, nature reserves, landscape & marine protected areas; seabird reserves flagged for the seasonal nesting ban. | [Miljødirektoratet](https://kart.miljodirektoratet.no/) | **Official government data** |
 | **Protected-area flight bans** | Exact restriction zones inside protected areas — access bans (ferdselsforbud), low-flying-under-300 m (includes drones) and landing bans, with the official per-zone dates. Civilian zones only; military (Forsvaret) zones excluded. | [Miljødirektoratet](https://kart.miljodirektoratet.no/) | **Official government data** |
 | **Prisons** | Prisons (Bodø, Fauske) with a small advisory ring — flying over/near needs permission (BSL A 7-2 §7); the law sets no fixed distance. | OpenStreetMap | Crowd-sourced |
-| **Military / sensitive sites** | Advisory dots at well-known installations (Bodø, Andøya, Evenes, Bardufoss, Ramsund, Sortland). **Not** NSM's sensor-ban zones (no open feed) — every marker points to NSM's own map. | Curated | Hand-verified |
+| **NSM sensor/photo-ban zones** | NSM's real published forbidden-zone polygons for airborne sensors (incl. photo/video). Inside one, a camera/sensor drone needs NSM permission — register with NSM. | [NSM public ArcGIS feed](https://nsm.no/tjenester/kart-over-forbudsomrader-for-luftbarne-sensorsystemer/) | **Official NSM data** |
+| **Military / sensitive sites** | Advisory dots at well-known installations (Bodø, Andøya, Evenes, Bardufoss, Ramsund, Sortland) — an extra cue alongside the NSM zones above. Each marker points to NSM's own map. | Curated | Hand-verified |
 | **Populated areas** | Towns/villages + residential land. Off by default. | OpenStreetMap | Crowd-sourced |
 | **Controlled airspace (high)** | TMA/CTA (high floor). Off by default — context only, above the 120 m drone ceiling. | luftrom.info | AIP-derived |
 

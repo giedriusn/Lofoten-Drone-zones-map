@@ -537,8 +537,8 @@ async function buildRestrictions() {
 }
 
 // ---------- 8. Military / sensitive sites (NSM advisory) ----------
-// Curated, hand-verified installations rendered as advisory DOTS — NOT NSM's
-// actual sensor-ban zones (no open/authorized feed exists for those geometries).
+// Curated, hand-verified installations rendered as advisory DOTS that complement
+// the real NSM sensor-ban zone polygons (buildNsmZones / the `nsm` layer).
 // Fully offline/deterministic: just transforms config.sensitive into GeoJSON.
 async function buildSensitive() {
   const s = config.sensitive || {};
