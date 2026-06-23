@@ -50,25 +50,35 @@ Every surface (popup, glossary, spot-check) must convey:
 
 - New curated list in `config.json`:
   ```json
-  "sensitive_sites": [
-    { "name": "Bodø air station",        "lat": 67.269, "lon": 14.365 },
-    { "name": "Andøya air station",      "lat": 69.293, "lon": 16.144 },
-    { "name": "Evenes air station",      "lat": 68.491, "lon": 16.678 },
-    { "name": "Bardufoss air station",   "lat": 69.056, "lon": 18.540 },
-    { "name": "Ramsund naval station",   "lat": 68.490, "lon": 16.530 },
-    { "name": "Sortland (Coast Guard)",  "lat": 68.700, "lon": 15.420 }
-  ]
+  "sensitive": {
+    "nsm_url": "https://nsm.no/tjenester/kart-over-forbudsomrader-for-luftbarne-sensorsystemer/",
+    "notify_km": 20,
+    "sites": [
+      { "name": "Bodø air station",       "lat": 67.269, "lon": 14.365 },
+      { "name": "Andøya air station",     "lat": 69.293, "lon": 16.144 },
+      { "name": "Evenes air station",     "lat": 68.491, "lon": 16.678 },
+      { "name": "Bardufoss air station",  "lat": 69.056, "lon": 18.540 },
+      { "name": "Ramsund naval station",  "lat": 68.490, "lon": 16.530 },
+      { "name": "Sortland (Coast Guard)", "lat": 68.700, "lon": 15.420 }
+    ]
+  }
   ```
+  `nsm_url` = the canonical NSM map every surface links to. `notify_km` = how
+  close the spot-check must be before it nudges you to check NSM (default 20 km).
+
   **Exactly 6 markers, one per named installation.** Coordinates above are
   approximate — each is **hand-verified during implementation** before commit.
   NJHQ/Reitan (~15 km E of Bodø) is intentionally **not** a separate marker; the
   shared popup instead notes that not every sensitive site is marked — the
   honest framing, and it avoids implying the list is exhaustive.
-- New build step `buildSensitive()` in `scripts/build-data.mjs`: reads the
-  config list (no network — fully offline/deterministic, unlike the OSM/ArcGIS
-  builds) and writes `data/sensitive.geojson` as Point features with
-  `properties.layer = "sensitive"`, `name`, and a shared `rule` string carrying
-  the honesty wording above.
+- New **pure module** `sensitive.mjs` (repo root, mirroring `season.mjs`):
+  `sensitiveFeatures(sites, { nsm_url })` → an array of Point Features with
+  `properties.layer = "sensitive"`, `name`, `nsm_url`, and a shared `rule`
+  string carrying the honesty wording above. Pure + offline → unit-testable
+  (`scripts/sensitive.test.mjs`).
+- New build step `buildSensitive()` in `scripts/build-data.mjs` imports that
+  function and `save()`s `data/sensitive.geojson` (no network — fully
+  deterministic, unlike the OSM/ArcGIS builds).
 
 ## Map render (`app.js`)
 
@@ -80,9 +90,11 @@ Every surface (popup, glossary, spot-check) must convey:
   same hex value as the existing `--c-nsm` CSS var. (`COLORS` is a plain object
   of hex literals; it does not read CSS variables, so the value is duplicated,
   matching the existing pattern for every other layer colour.)
-- Rendered as a `circleMarker` (matching prisons/airports dot style) **with no
-  ring** — the absence of a radius is deliberate: a circle would read as a
-  boundary. Popup via the shared `popupHtml`, text:
+- Rendered as a small **diamond marker** (`L.divIcon`, class `.sensitive-icon`)
+  with **no ring/radius** — deliberate: any circle would read as a zone
+  boundary, and a diamond stays visually distinct from the round dots (prisons,
+  places) and the grey controlled-airspace fill. Popup via the shared
+  `popupHtml`, text:
   > **Military / sensitive site.** Photo & sensor bans may apply nearby
   > (airborne cameras included). The actual zones aren't drawn here and may sit
   > elsewhere — **check [NSM's map ↗]**. Near a military area, flying itself may
@@ -101,8 +113,10 @@ Every surface (popup, glossary, spot-check) must convey:
   `bearingTo`/`fmtDist`), rendered as an advisory line — **independent of the
   OK/no-fly verdict**:
   > ⚠️ Nearest military/sensitive site: **Evenes 3.2 km NE** → check NSM map ↗
-- Shown always (not only when clear), because a sensor-ban can apply even inside
-  an otherwise-OK spot. Never alters the OK/permission/no-fly verdict.
+- Shown whenever a marked site is within `config.sensitive.notify_km` (default
+  20 km) — independent of the verdict (a sensor-ban can apply even inside an
+  otherwise-OK spot), but suppressed when the nearest site is far enough to be
+  irrelevant. Never alters the OK/permission/no-fly verdict.
 
 ## Offline (`sw.js`)
 
