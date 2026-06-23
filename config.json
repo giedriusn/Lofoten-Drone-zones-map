@@ -30,7 +30,7 @@
     "advisory_m": 300
   },
   "sensitive": {
-    "_comment": "Curated, hand-verified military/sensitive installations shown as advisory dots — NOT NSM zones (no open feed for those). Every surface points to NSM's own map. notify_km = how close the spot-check must be before it nudges you to check NSM.",
+    "_comment": "Curated, hand-verified military/sensitive installations shown as advisory dots that COMPLEMENT the real NSM sensor-ban zones (the nsm layer, drawn from NSM's public feed) — an extra cue at well-known bases, since a zone may also sit elsewhere or at an unmarked site. Every surface points to NSM's own map. notify_km = how close the spot-check must be before it nudges you to check NSM.",
     "nsm_url": "https://nsm.no/tjenester/kart-over-forbudsomrader-for-luftbarne-sensorsystemer/",
     "notify_km": 20,
     "sites": [

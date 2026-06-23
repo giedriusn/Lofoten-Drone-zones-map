@@ -1,6 +1,24 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { nsmZoneFeatures } from "../nsm.mjs";
+
+// The NSM zones are now drawn from NSM's public ArcGIS feed, so the claim that there is
+// "no open feed" for them (the bug this pins — config.json said it) is now factually false
+// and contradicts the layer the user sees. Pin that exact phrase so it can't creep back
+// into a served file. It is deliberately narrow: "no open feed" is unambiguous and never
+// legitimate copy, whereas broader phrases like "not drawn" have valid uses ("not drawn to
+// scale") and would false-positive. This is a targeted regression guard for the specific
+// stale claim, not a semantic check for every possible paraphrase. (Historical design docs
+// under docs/ are records of the old assumption — out of scope.)
+test("no shipping config/code still claims there is 'no open feed' for the NSM zones", () => {
+  const stale = /no open feed/i;
+  // The served surfaces the false claim could live in: data/transform modules + user-facing copy.
+  for (const rel of ["../config.json", "../sensitive.mjs", "../nsm.mjs", "../index.html", "../README.md"]) {
+    const text = readFileSync(new URL(rel, import.meta.url), "utf8");
+    assert.ok(!stale.test(text), `${rel} still carries the stale "no open feed" claim about NSM zones`);
+  }
+});
 
 const POLY = { type: "Polygon", coordinates: [[[13.88, 66.99], [13.89, 66.99], [13.89, 67.0], [13.88, 66.99]]] };
 const sample = {
