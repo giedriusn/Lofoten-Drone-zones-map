@@ -174,6 +174,11 @@ function buildLayer(def, fc) {
       const lyr = L.geoJSON(f, { style: () => styleFor(def, f.properties) });
       lyr.bindPopup(popupHtml(f, def));
       group.addLayer(lyr);
+      if (def.id === "seabird") {
+        const c = lyr.getBounds().getCenter();
+        const icon = L.divIcon({ className: "seabird-icon", html: "🐦", iconSize: [16, 16], iconAnchor: [8, 8] });
+        group.addLayer(L.marker(c, { icon, interactive: false }));
+      }
     }
   }
 
@@ -279,16 +284,28 @@ function styleFor(def, p) {
   // (a darker outline than its fill) and/or `weight`: pale-yellow zones wash out on the
   // light basemap, so they get a dark amber edge drawn a little heavier.
   const noFly = def.severity === "nofly";
+  const seabirdActive = def.id === "seabird" && nestingActive(p.nesting_from, p.nesting_to, new Date());
   return {
     color: def.stroke || fill, fillColor: fill,
-    weight: def.weight ?? (noFly ? 2.2 : def.id === "tiz" ? 1 : 1.5),
-    fillOpacity: def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.15
+    weight: def.id === "seabird" ? (seabirdActive ? 2.6 : 1.6) : (def.weight ?? (noFly ? 2.2 : def.id === "tiz" ? 1 : 1.5)),
+    fillOpacity: def.id === "seabird" ? (seabirdActive ? 0.32 : 0.12)
+      : def.id === "exercise" ? 0.06 : def.id === "tiz" ? 0.15
       : def.id === "populated" ? 0.18 : noFly ? 0.24 : 0.16,
     dashArray: def.dashed ? "6 4" : null,
   };
 }
 
 /* ---------------- Popups ---------------- */
+
+// Live nesting-ban status for a seabird feature, shown in both the popup and the
+// spot-check verdict. Computed at view time from today's date (the data file is static).
+function nestingStatusHtml(p) {
+  if (!p.seabird) return "";
+  const active = nestingActive(p.nesting_from, p.nesting_to, new Date());
+  return active
+    ? `<div class="pp-rule nesting nesting--on">🐦 Nesting ban ACTIVE now — closed until 31 Jul (ferdselsforbud)</div>`
+    : `<div class="pp-rule nesting nesting--off">🐦 Nesting ban — dormant now (applies ~15 Apr–31 Jul)</div>`;
+}
 
 function popupHtml(f, def) {
   const p = f.properties;
@@ -311,6 +328,7 @@ function popupHtml(f, def) {
   return `<h3>${esc(name)}</h3>
     <div class="pp-type">${esc(type)}</div>
     <div class="pp-rule">${esc(p.rule || "")}</div>
+    ${nestingStatusHtml(p)}
     ${extra}
     ${links.length ? `<div class="pp-rule">${links.join(" · ")}</div>` : ""}`;
 }
@@ -595,6 +613,7 @@ function renderResult(latlng, hits, nearest) {
         <span class="hit__name">${esc(h.p.name || type)}</span></div>
       <div class="hit__type">${esc(type)}${alt}</div>
       <div class="hit__rule">${esc(h.p.rule || "")}${reg}</div>
+      ${nestingStatusHtml(h.p)}
     </div>`;
   };
 
