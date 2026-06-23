@@ -5,6 +5,7 @@
 import { registerServiceWorker, kartverketBasemap, setupOfflineUI } from "./offline.mjs";
 import { featureContains, nearestPointOnFeature, bearingTo, fmtDist, haversine } from "./geometry.mjs";
 import { nestingActive, windowsActive } from "./season.mjs";
+import { unloadedBlockingLayers } from "./data-health.mjs";
 
 const COLORS = {
   // Severity palette: RED = strict no-fly · ORANGE = need permission · others = caution/context
@@ -52,6 +53,9 @@ const LAYER_DEFS = [
 let map, config;
 const groups = {};          // id -> L.layerGroup
 const featuresByLayer = {}; // id -> [{feature, def}] for spot-check
+// Names of blocking (no-fly) layers whose data file failed to load. A gap here must
+// NOT read as "clear" — the spot-check downgrades its verdict and warns instead.
+let missingBlockingLayers = [];
 let pickMode = false;
 let pickMarker = null;
 let accuracyCircle = null; // GPS accuracy ring for the "locate me" feature
@@ -87,15 +91,31 @@ async function init() {
   const basemaps = setupBasemaps();
   L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
 
-  // Load all data files in parallel.
+  // Load all data files in parallel. A failed/garbled file falls back to empty so one
+  // bad layer never blanks the whole map — but the failure is recorded (resp.ok AND a
+  // real features array are both required) so a missing no-fly layer can't masquerade
+  // as "nothing here" in the verdict.
   const files = ["airports", "airspace", "nature", "populated", "helipads", "prisons", "restrictions", "sensitive"];
   const data = {};
+  const failedFiles = [];
   await Promise.all(files.map(async f => {
-    try { data[f] = await (await fetch(`data/${f}.geojson`)).json(); }
-    catch { data[f] = { features: [] }; }
+    try {
+      const resp = await fetch(`data/${f}.geojson`);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const json = await resp.json();
+      if (!Array.isArray(json.features)) throw new Error("no features array");
+      data[f] = json;
+    } catch {
+      data[f] = { features: [] };
+      failedFiles.push(f);
+    }
   }));
 
   for (const def of LAYER_DEFS) buildLayer(def, data[def.file]);
+  // Surface any blocking no-fly layer that failed to load — a silent gap would make the
+  // spot-check answer "clear" over a real restriction (the worst outcome for this tool).
+  missingBlockingLayers = unloadedBlockingLayers(LAYER_DEFS, failedFiles);
+  if (missingBlockingLayers.length) showLoadWarning(missingBlockingLayers);
   showDataAge(data);
   buildLayerUI();
   // Show the nesting-season banner only while the seabird access ban is active today.
@@ -396,6 +416,19 @@ function showDataAge(data) {
   if (built) el.textContent = ` Data built ${built.slice(0, 10)} — airspace reflects the AIRAC cycle current then.`;
 }
 
+// Persistent, prominent banner when a no-fly layer's data failed to load — so the user
+// knows the map (and any "clear" verdict) is incomplete and should be re-checked online.
+function showLoadWarning(names) {
+  const host = document.querySelector(".panel__body");
+  if (!host) return;
+  const el = document.createElement("p");
+  el.className = "loadwarn";
+  el.setAttribute("role", "alert");
+  el.innerHTML = `⚠️ Couldn't load some no-fly data (${esc(names.join(", "))}). ` +
+    `The map and “Can I fly here?” may miss real restrictions — reload while online before relying on them.`;
+  host.insertBefore(el, host.firstChild);
+}
+
 function buildLayerUI() {
   const root = document.getElementById("layers");
   for (const def of LAYER_DEFS) {
@@ -650,11 +683,21 @@ function renderResult(latlng, hits, nearest, nearestSensitive) {
   // the zone colours and glossary badges instead of alarming red for every zone.
   const noFly = blocking.filter(h => h.def.severity === "nofly");
   const count = blocking.length, plural = count > 1 ? "s" : "";
+  // If a blocking no-fly layer failed to load, an apparently-clear point can't be
+  // trusted — downgrade the reassuring green "clear" headline to a caution.
+  const incomplete = missingBlockingLayers.length > 0;
   const verdict = !count
-    ? `<div class="verdict clear"><span class="verdict__dot"></span>No drone restriction at ≤120 m</div>`
+    ? (incomplete
+        ? `<div class="verdict permission"><span class="verdict__dot"></span>Can't confirm — restriction data didn't fully load</div>`
+        : `<div class="verdict clear"><span class="verdict__dot"></span>No drone restriction at ≤120 m</div>`)
     : noFly.length
     ? `<div class="verdict blocked"><span class="verdict__dot"></span>${count} restriction${plural} here</div>`
     : `<div class="verdict permission"><span class="verdict__dot"></span>Permission needed — ${count} zone${plural} here</div>`;
+  // Caveat shown on every verdict while data is incomplete (even when some zones DID hit,
+  // since other no-fly layers may be missing).
+  const dataWarn = incomplete
+    ? `<div class="hit__rule datawarn">⚠️ Some no-fly data didn't load (${esc(missingBlockingLayers.join(", "))}). This check may miss real restrictions — reload while online.</div>`
+    : "";
 
   const renderHit = h => {
     const color = colorFor(h.def, h.p);
@@ -674,8 +717,10 @@ function renderResult(latlng, hits, nearest, nearestSensitive) {
 
   const blockHtml = blocking.map(renderHit).join("");
 
-  // Only show the margin-to-nearest readout when the point is otherwise clear.
-  const nearestHtml = (!blocking.length && nearest)
+  // Only show the margin-to-nearest readout when the point is otherwise clear — and not
+  // when data is incomplete, since a "nearest" computed from only the loaded layers could
+  // imply margin that the unloaded no-fly layers don't actually grant.
+  const nearestHtml = (!blocking.length && nearest && !incomplete)
     ? `<div class="nearest">Nearest restriction: <strong>${esc(nearest.p.name || nearest.def.name)}</strong> — ${fmtDist(nearest.distM)} ${nearest.bearing}</div>`
     : "";
 
@@ -688,15 +733,22 @@ function renderResult(latlng, hits, nearest, nearestSensitive) {
         <a href="${esc(safeUrl(nearestSensitive.p.nsm_url))}" target="_blank" rel="noopener">check NSM map ↗</a>.</div>`
     : "";
 
+  // The wildlife rule is true everywhere regardless of which layers loaded, so it always
+  // shows on a clear point. The categorical "nothing covers this point" sentence, however,
+  // must NOT appear when data is incomplete — it would re-assert the very all-clear the
+  // headline just withdrew.
+  const wildlifeNote = `<div class="hit__rule wildlife">🐦 Wildlife rule (everywhere, even here): under <em>naturmangfoldloven §15</em> you must not disturb wildlife — especially nesting birds. Don't fly low over animals, flocks or nests.</div>`;
   const clearNote = !blocking.length
-    ? `<div class="hit__rule">No airport/control/traffic zone, restricted or danger area, protected area, or prison covers this point at drone altitude. Standard rules still apply: max 120 m above the surface, keep clear of people, check NOTAMs.</div>
-       <div class="hit__rule wildlife">🐦 Wildlife rule (everywhere, even here): under <em>naturmangfoldloven §15</em> you must not disturb wildlife — especially nesting birds. Don't fly low over animals, flocks or nests.</div>`
+    ? (incomplete
+        ? wildlifeNote
+        : `<div class="hit__rule">No airport/control/traffic zone, restricted or danger area, protected area, or prison covers this point at drone altitude. Standard rules still apply: max 120 m above the surface, keep clear of people, check NOTAMs.</div>
+       ${wildlifeNote}`)
     : "";
   const contextHtml = context.length
     ? `<div class="hit__section">Context / advisory (not a no-fly below 120 m)</div>` + context.map(renderHit).join("")
     : "";
 
-  body.innerHTML = verdict + blockHtml + nearestHtml + sensitiveHtml + clearNote + contextHtml +
+  body.innerHTML = verdict + dataWarn + blockHtml + nearestHtml + sensitiveHtml + clearNote + contextHtml +
     `<div class="coords">${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}</div>`;
   document.getElementById("result").classList.remove("result--hidden");
 }

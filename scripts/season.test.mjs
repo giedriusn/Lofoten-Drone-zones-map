@@ -53,6 +53,30 @@ test("parseRestrictionWindows: no dates → []", () => {
   assert.deepEqual(parseRestrictionWindows("Ferdselsforbud"), []);
   assert.deepEqual(parseRestrictionWindows(""), []);
 });
+test("parseRestrictionWindows: Norwegian trailing-dot dates (15.4.-31.7.) parse", () => {
+  // The official restriksjonerBeskrivelse prose terminates each date with a period
+  // ("15.4. - 31.7."); only the parenthetical summary uses the bare form. Both must parse.
+  assert.deepEqual(parseRestrictionWindows("Ferdselsforbud 15.4.-31.7."),
+    [{ from: "04-15", to: "07-31" }]);
+  assert.deepEqual(parseRestrictionWindows("Ilandstigningsforbud fra Vestervågen 15.4. - 31.7."),
+    [{ from: "04-15", to: "07-31" }]);
+});
+test("parseRestrictionWindows: out-of-range day/month is rejected (no phantom window)", () => {
+  assert.deepEqual(parseRestrictionWindows("13.40-99.99 garbage"), []);
+  assert.deepEqual(parseRestrictionWindows("32.1-15.6"), []); // day 32 is impossible
+});
+test("parseRestrictionWindows: a real date is never dropped because text follows it (no false-empty)", () => {
+  // Dropping a real date because prose follows it (a word or a unit) would wrongly read a
+  // no-fly as "not in force" — the unsafe direction. The parser must keep the date.
+  for (const s of ["15.4-31.7 meter fra reiret", "15.4-31.7 m", "15.4-31.7 km", "15.4. - 31.7. moh"]) {
+    assert.deepEqual(parseRestrictionWindows(s), [{ from: "04-15", to: "07-31" }], s);
+  }
+});
+test("parseRestrictionWindows: an identical range repeated (summary + prose) is deduped", () => {
+  assert.deepEqual(
+    parseRestrictionWindows("Ferdselsforbud (15.4-31.7): Ferdsel på land 15.4. - 31.7. unntatt øya"),
+    [{ from: "04-15", to: "07-31" }]);
+});
 test("windowsActive: year-round is always active", () => {
   assert.equal(windowsActive([], true, on("2026-01-10")), true);
 });

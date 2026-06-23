@@ -10,6 +10,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { parseRestrictionWindows } from "../season.mjs";
+import { fetchOk, requireFeatures } from "./source-utils.mjs";
 import { sensitiveFeatures } from "../sensitive.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -87,7 +88,7 @@ function parseCsv(text) {
 // ---------- 1. Airports + 5 km no-fly rings ----------
 
 async function buildAirports() {
-  const csv = parseCsv(await (await fetch(SRC.airports_csv)).text());
+  const csv = parseCsv(await (await fetchOk(SRC.airports_csv)).text());
   const ringTypes = new Set(config.airports.ring_types);
   const markerTypes = new Set(config.airports.marker_types);
   const km = config.airports.buffer_km;
@@ -161,12 +162,12 @@ const CLASS_META = {
 };
 
 async function buildAirspace() {
-  const data = await (await fetch(SRC.airspace_geojson)).json();
+  const data = await (await fetchOk(SRC.airspace_geojson)).json();
   const floorMax = config.airspace.drone_floor_max_m;
   const droneClasses = new Set(config.airspace.drone_relevant_classes);
   const contextClasses = new Set(config.airspace.context_classes);
   const features = [];
-  for (const f of data.features) {
+  for (const f of requireFeatures(data, "Airspace")) {
     const cls = f.properties.class;
     const name = f.properties.name || "";
     if (!droneClasses.has(cls) && !contextClasses.has(cls)) continue;
@@ -255,8 +256,8 @@ async function buildNature() {
       resultOffset: String(offset),
       resultRecordCount: String(page),
     });
-    const data = await (await fetch(`${SRC.nature_arcgis}?${params}`)).json();
-    const batch = data.features || [];
+    const data = await (await fetchOk(`${SRC.nature_arcgis}?${params}`)).json();
+    const batch = requireFeatures(data, "Nature");
     for (const f of batch) {
       const id = f.properties?.naturvernId ?? f.id;
       if (id != null) { if (seenIds.has(id)) continue; seenIds.add(id); }
@@ -499,8 +500,8 @@ async function buildRestrictions() {
         resultOffset: String(offset),
         resultRecordCount: String(page),
       });
-      const data = await (await fetch(`${SRC.restrictions_arcgis}/${lyr}/query?${params}`)).json();
-      const batch = data.features || [];
+      const data = await (await fetchOk(`${SRC.restrictions_arcgis}/${lyr}/query?${params}`)).json();
+      const batch = requireFeatures(data, "Restrictions");
       for (const f of batch) {
         const p = f.properties || {};
         const id = p.vernRestriksjonId ?? f.id;

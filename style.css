@@ -257,6 +257,12 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
   border-radius: 8px; color: #ffb3c0; }
 .seasonbanner strong { color: #ff8aa0; }
 
+/* Data-load failure: a no-fly layer didn't load, so verdicts may be incomplete. Amber. */
+.loadwarn { margin: 0 0 10px; padding: 8px 10px; font-size: 13px; line-height: 1.4;
+  background: rgba(255,159,10,.12); border: 1px solid rgba(255,159,10,.45);
+  border-radius: 8px; color: #ffce8a; }
+.datawarn { color: #ffce8a; }
+
 /* ---------- Result panel ---------- */
 .result {
   position: absolute;

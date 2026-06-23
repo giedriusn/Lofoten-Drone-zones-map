@@ -15,4 +15,4 @@ jobs:
       # Pure-module unit tests (tile math, no-fly geometry, offline-asset invariants).
       # No dependencies — Node's built-in test runner. Explicit file list so the
       # runner never tries to execute non-test scripts like build-data.mjs.
-      - run: node --test scripts/tiles.test.mjs scripts/geometry.test.mjs scripts/offline-assets.test.mjs scripts/season.test.mjs scripts/sensitive.test.mjs
+      - run: node --test scripts/tiles.test.mjs scripts/geometry.test.mjs scripts/offline-assets.test.mjs scripts/season.test.mjs scripts/sensitive.test.mjs scripts/source-utils.test.mjs scripts/data-health.test.mjs
