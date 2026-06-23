@@ -4,6 +4,7 @@
 
 import { registerServiceWorker, kartverketBasemap, setupOfflineUI } from "./offline.mjs";
 import { featureContains, nearestPointOnFeature, bearingTo, fmtDist } from "./geometry.mjs";
+import { nestingActive } from "./season.mjs";
 
 const COLORS = {
   // Severity palette: RED = strict no-fly · ORANGE = need permission · others = caution/context
@@ -13,6 +14,7 @@ const COLORS = {
   restricted: "#ff2238",  // strict no-fly → red
   danger: "#ff2238",      // strict no-fly → red
   reserve: "#ff2238",     // nature reserve = strict no-fly → red
+  seabird: "#ff2238",     // seabird reserve = strict no-fly (red); dashed edge + 🐦 marker set it apart
   park: "#c1121f",        // national park → deeper red
   exercise: "#9a6fb0",    // conditional (NOTAM) → violet
   airsport: "#ffc400",    // caution → yellow (deeper than pale gold for contrast on the light basemap)
@@ -34,7 +36,8 @@ const LAYER_DEFS = [
   { id: "restricted", name: "Restricted areas", color: COLORS.restricted, on: true, file: "airspace", match: p => p.category === "restricted", blocking: true, severity: "nofly" },
   { id: "danger", name: "Danger areas (firing/military)", color: COLORS.danger, on: true, file: "airspace", match: p => p.category === "danger", dashed: true, blocking: true, severity: "nofly" },
   { id: "exercise", name: "Military exercise areas (NOTAM)", color: COLORS.exercise, on: true, file: "airspace", match: p => p.category === "exercise", dashed: true, blocking: false, severity: "conditional" },
-  { id: "nature", name: "Nature reserves & parks", color: COLORS.reserve, on: true, file: "nature", blocking: true, severity: "nofly" },
+  { id: "nature", name: "Nature reserves & parks", color: COLORS.reserve, on: true, file: "nature", match: p => !p.seabird, blocking: true, severity: "nofly" },
+  { id: "seabird", name: "Seabird reserves (nesting ban)", color: COLORS.seabird, on: true, file: "nature", match: p => p.seabird, dashed: true, blocking: true, severity: "nofly", stroke: "#7a0010", weight: 2 },
   { id: "prison", name: "Prisons", color: COLORS.prison, on: true, file: "prisons", blocking: true, severity: "permission" },
   { id: "helipad", name: "Hospital / HEMS helipads", color: COLORS.helipad, on: true, file: "helipads", blocking: false, severity: "caution" },
   { id: "airsport", name: "Air sports areas", color: COLORS.airsport, on: false, file: "airspace", match: p => p.category === "airsport", blocking: false, severity: "caution", stroke: "#7a5200", weight: 2 },
