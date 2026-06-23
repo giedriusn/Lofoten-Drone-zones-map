@@ -10,7 +10,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { parseRestrictionWindows } from "../season.mjs";
-import { fetchOk, requireFeatures } from "./source-utils.mjs";
+import { fetchOk, requireFeatures, hasMorePages } from "./source-utils.mjs";
 import { sensitiveFeatures } from "../sensitive.mjs";
 import { nsmZoneFeatures } from "../nsm.mjs";
 
@@ -21,6 +21,14 @@ const DATA = join(ROOT, "data");
 const config = JSON.parse(await readFile(join(ROOT, "config.json"), "utf8"));
 const [W, S, E, N] = config.region.bbox;
 const SRC = config.sources;
+
+// Runaway guard for the paged ArcGIS loops. A non-conformant server can ignore
+// resultOffset (returning the same rows) or leave exceededTransferLimit stuck true,
+// which would otherwise spin forever (and, for the no-dedup NSM layer, grow unbounded).
+// These regional layers are a few hundred features (one page); 1000 pages (~1M records)
+// is an impossible-to-reach ceiling, so hitting it means broken pagination — throw and
+// fail the build loudly instead of hanging.
+const MAX_PAGES = 1000;
 
 // ---------- geometry helpers ----------
 
@@ -239,7 +247,7 @@ function natureRule(cat, seasonal, seabird) {
 async function buildNature() {
   const features = [];
   const seenIds = new Set();
-  let offset = 0;
+  let offset = 0, pages = 0;
   const page = 1000;
   for (;;) {
     const params = new URLSearchParams({
@@ -291,12 +299,11 @@ async function buildNature() {
         },
       });
     }
-    // Page using ArcGIS's canonical flag; fall back to batch-size heuristic if
-    // the server omits it. Advance by the actual batch size, not the page const.
-    const more = data.exceededTransferLimit === true ||
-      (data.exceededTransferLimit === undefined && batch.length === page);
-    if (!more || batch.length === 0) break;
+    // Detect truncation (incl. the nested-flag location ArcGIS uses for f=geojson);
+    // advance by the actual batch size, not the page const.
+    if (!hasMorePages(data, batch.length, page) || batch.length === 0) break;
     offset += batch.length;
+    if (++pages >= MAX_PAGES) throw new Error(`Nature: pagination did not terminate after ${MAX_PAGES} pages (server ignoring resultOffset?)`);
   }
   await save("nature.geojson", features, "Nature reserves & parks");
 }
@@ -485,7 +492,7 @@ out tags center;`;
 async function buildRestrictions() {
   const byId = new Map(); // vernRestriksjonId -> feature; keep the longest (most complete) description
   for (const lyr of [0, 1, 2]) {
-    let offset = 0;
+    let offset = 0, pages = 0;
     const page = 1000;
     for (;;) {
       const params = new URLSearchParams({
@@ -527,10 +534,9 @@ async function buildRestrictions() {
           },
         });
       }
-      const more = data.exceededTransferLimit === true ||
-        (data.exceededTransferLimit === undefined && batch.length === page);
-      if (!more || batch.length === 0) break;
+      if (!hasMorePages(data, batch.length, page) || batch.length === 0) break;
       offset += batch.length;
+      if (++pages >= MAX_PAGES) throw new Error(`Restrictions: pagination did not terminate after ${MAX_PAGES} pages (server ignoring resultOffset?)`);
     }
   }
   await save("restrictions.geojson", [...byId.values()], "Protected-area flight bans");
@@ -547,29 +553,40 @@ async function buildSensitive() {
 }
 
 // ---------- 9. NSM sensor-ban zones (real published polygons) ----------
-// NSM's public ArcGIS feed — the same data NSM's own map reads. Clipped to the
-// region. Permission to operate a camera/sensor drone inside one is obtained by
-// registering with NSM (config.sensitive.nsm_url). Fails loudly (transfer-limit +
-// requireFeatures + zero-length guards) so a broken/paged query never ships an
-// empty or truncated no-fly layer.
+// NSM's public ArcGIS feed — the same data NSM's own map reads. Filtered to the features
+// intersecting the region. Permission to operate a camera/sensor drone inside one is
+// obtained by registering with NSM (config.sensitive.nsm_url). Pages through the result
+// (like buildNature/buildRestrictions) so a region with more zones than the server's
+// page size is fetched whole, not silently truncated; requireFeatures + a zero-length
+// guard keep a broken/empty response from ever overwriting the good no-fly layer.
 async function buildNsmZones() {
   const nsm_url = config.sensitive?.nsm_url || "";
-  const params = new URLSearchParams({
-    where: "1=1",
-    geometry: `${W},${S},${E},${N}`,
-    geometryType: "esriGeometryEnvelope",
-    inSR: "4326",
-    spatialRel: "esriSpatialRelIntersects",
-    outFields: "navn,typeforbud,refnr",
-    outSR: "4326",
-    returnGeometry: "true",
-    f: "geojson",
-  });
-  const data = await (await fetchOk(`${SRC.nsm_zones_arcgis}/query?${params}`)).json();
-  if (data.exceededTransferLimit) throw new Error("NSM zones: server paged the result (raise page size / add paging)");
-  const src = requireFeatures(data, "NSM zones");
-  if (src.length === 0) throw new Error("NSM zones: 0 features in region (broken query?)");
-  await save("nsm.geojson", nsmZoneFeatures(data, { nsm_url }), "NSM sensor-ban zones");
+  const features = [];
+  let offset = 0, pages = 0;
+  const page = 1000;
+  for (;;) {
+    const params = new URLSearchParams({
+      where: "1=1",
+      geometry: `${W},${S},${E},${N}`,
+      geometryType: "esriGeometryEnvelope",
+      inSR: "4326",
+      spatialRel: "esriSpatialRelIntersects",
+      outFields: "navn,typeforbud,refnr",
+      outSR: "4326",
+      returnGeometry: "true",
+      f: "geojson",
+      resultOffset: String(offset),
+      resultRecordCount: String(page),
+    });
+    const data = await (await fetchOk(`${SRC.nsm_zones_arcgis}/query?${params}`)).json();
+    const batch = requireFeatures(data, "NSM zones");
+    features.push(...nsmZoneFeatures({ features: batch }, { nsm_url }));
+    if (!hasMorePages(data, batch.length, page) || batch.length === 0) break;
+    offset += batch.length;
+    if (++pages >= MAX_PAGES) throw new Error(`NSM zones: pagination did not terminate after ${MAX_PAGES} pages (server ignoring resultOffset?)`);
+  }
+  if (features.length === 0) throw new Error("NSM zones: 0 features in region (broken query?)");
+  await save("nsm.geojson", features, "NSM sensor-ban zones");
 }
 
 // ---------- run ----------

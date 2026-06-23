@@ -22,3 +22,16 @@ export function requireFeatures(data, label) {
   }
   return data.features;
 }
+
+// Did ArcGIS truncate this page (more records remain)? ArcGIS signals it via
+// `exceededTransferLimit` — but the flag's LOCATION depends on the output format:
+//   f=json    → top-level `data.exceededTransferLimit`
+//   f=geojson → NESTED `data.properties.exceededTransferLimit` (top level is undefined)
+// Reading only the top level silently misses truncation for every geojson source, which
+// would ship a truncated no-fly layer. Check both. When neither flag is present, fall back
+// to the "the page came back completely full" heuristic. Callers page until this is false.
+export function hasMorePages(data, batchLength, pageSize) {
+  const flag = data?.exceededTransferLimit ?? data?.properties?.exceededTransferLimit;
+  if (typeof flag === "boolean") return flag;
+  return batchLength === pageSize;
+}

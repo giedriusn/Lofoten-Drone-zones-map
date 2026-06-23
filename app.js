@@ -356,6 +356,17 @@ function nestingStatusHtml(p) {
     : `<div class="pp-rule nesting nesting--off">🐦 Nesting ban — dormant now (applies ~15 Apr–31 Jul)</div>`;
 }
 
+// NSM zone detail: the specific ban type (typeforbud) + the zone's NSM reference number,
+// shown in both the popup and the spot-check verdict. The generic rule line doesn't carry
+// these per-zone facts, so without this they'd be fetched-but-never-shown. Property-driven
+// (only NSM features carry these fields), so it's a no-op for every other layer.
+function nsmDetailHtml(p) {
+  const bits = [];
+  if (p.typeforbud) bits.push(esc(p.typeforbud));
+  if (p.refnr) bits.push(`Ref. ${esc(p.refnr)}`);
+  return bits.length ? `<div class="pp-rule">${bits.join(" · ")}</div>` : "";
+}
+
 // Restriction-zone detail + live status, shown in the popup and the spot-check verdict.
 function restrictionStatusHtml(p) {
   if (p.layer !== "restriction") return "";
@@ -389,6 +400,7 @@ function popupHtml(f, def) {
   if (p.nsm_url) links.push(`<a href="${esc(safeUrl(p.nsm_url))}" target="_blank" rel="noopener">Check NSM map ↗</a>`);
   return `<h3>${esc(name)}</h3>
     <div class="pp-type">${esc(type)}</div>
+    ${nsmDetailHtml(p)}
     <div class="pp-rule">${esc(p.rule || "")}</div>
     ${nestingStatusHtml(p)}
     ${restrictionStatusHtml(p)}
@@ -712,6 +724,7 @@ function renderResult(latlng, hits, nearest, nearestSensitive) {
       <div class="hit__top"><span class="hit__chip" style="background:${color}"></span>
         <span class="hit__name">${esc(h.p.name || type)}</span></div>
       <div class="hit__type">${esc(type)}${alt}</div>
+      ${nsmDetailHtml(h.p)}
       <div class="hit__rule">${esc(h.p.rule || "")}${reg}</div>
       ${nestingStatusHtml(h.p)}
       ${restrictionStatusHtml(h.p)}

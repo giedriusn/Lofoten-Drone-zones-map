@@ -39,6 +39,41 @@ test("pointInGeom: MultiPolygon matches either part, axis-sensitive", () => {
   assert.equal(pointInGeom(0.5, 8, geom), false);  // transpose → in neither → catches a swap
 });
 
+test("malformed rings or vertices never crash the verdict engine — treated as no-area, never thrown", () => {
+  // A single malformed feature must NOT kill every "Can I fly here?" tap. The spot-check
+  // loops every polygon of every layer through these with no try/catch, so an external
+  // feed emitting an empty/null ring — OR a null/garbage vertex inside an otherwise valid
+  // ring (the same ArcGIS family that feeds nature/airspace) — would otherwise throw
+  // `…reading 'length'`/`…reading '0'` and produce no verdict at all.
+  const valid = rect(0, 0, 2, 2);
+
+  // pointInGeom: empty / degenerate geometry → not contained, no throw.
+  assert.equal(pointInGeom(1, 1, { type: "Polygon", coordinates: [] }), false);
+  assert.equal(pointInGeom(1, 1, { type: "Polygon", coordinates: [[]] }), false);
+  assert.equal(pointInGeom(1, 1, { type: "MultiPolygon", coordinates: [] }), false);
+  assert.equal(pointInGeom(1, 1, { type: "MultiPolygon", coordinates: [null] }), false);
+
+  // A valid outer ring with a degenerate hole (null/empty) → the hole is ignored, the
+  // outer ring still answers correctly, and nothing throws.
+  assert.equal(pointInGeom(1, 1, { type: "Polygon", coordinates: [valid, null] }), true);
+  assert.equal(pointInGeom(1, 1, { type: "Polygon", coordinates: [valid, []] }), true);
+
+  // A null/garbage VERTEX inside an otherwise-valid ring: the bad edge is skipped, the
+  // rest of the ring still answers, and nothing throws.
+  const nullVertex = [[0, 0], [2, 0], null, [2, 2], [0, 2], [0, 0]];
+  assert.doesNotThrow(() => pointInGeom(1, 1, { type: "Polygon", coordinates: [nullVertex] }));
+  assert.doesNotThrow(() => minEdgePoint(1, -1, { type: "Polygon", coordinates: [nullVertex] }));
+
+  // nearestPointOnFeature / minEdgePoint must also survive a null ring (used for the
+  // "nearest restriction" readout on blocking layers).
+  const def = { id: "restricted" };
+  const fNull = { geometry: { type: "Polygon", coordinates: [null] }, properties: {} };
+  assert.doesNotThrow(() => nearestPointOnFeature(1, -1, def, fNull));
+  assert.doesNotThrow(() => minEdgePoint(1, -1, { type: "Polygon", coordinates: [null] }));
+  const fNullVertex = { geometry: { type: "Polygon", coordinates: [nullVertex] }, properties: {} };
+  assert.doesNotThrow(() => nearestPointOnFeature(1, -1, def, fNullVertex));
+});
+
 test("haversine: a degree of latitude is ~111.2 km; longitude shrinks with latitude", () => {
   assert.ok(Math.abs(haversine(0, 0, 1, 0) - 111195) < 1);
   // At lat 60 a degree of longitude is ~half a degree of latitude — pins the arg order.

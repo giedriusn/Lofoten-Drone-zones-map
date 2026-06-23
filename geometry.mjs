@@ -4,7 +4,9 @@
 
 export function pointInGeom(x, y, geom) {
   const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
+  if (!Array.isArray(polys)) return false;
   for (const poly of polys) {
+    if (!Array.isArray(poly)) continue;
     if (pointInRing(x, y, poly[0])) {
       let inHole = false;
       for (let k = 1; k < poly.length; k++) if (pointInRing(x, y, poly[k])) { inHole = true; break; }
@@ -14,10 +16,17 @@ export function pointInGeom(x, y, geom) {
   return false;
 }
 
+// Ray casting. A malformed ring (missing/empty/non-array) or a bad vertex (null/non-array,
+// possible from an external feed) has no usable area, so rather than dereferencing it and
+// throwing — which, uncaught in the spot-check loop, would kill every verdict — skip the
+// offending edge and return false when nothing usable remains.
 export function pointInRing(x, y, ring) {
+  if (!Array.isArray(ring) || ring.length === 0) return false;
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+    const a = ring[i], b = ring[j];
+    if (!Array.isArray(a) || !Array.isArray(b)) continue;
+    const xi = a[0], yi = a[1], xj = b[0], yj = b[1];
     if (((yi > y) !== (yj > y)) && (x < ((xj - xi) * (y - yi)) / (yj - yi) + xi)) inside = !inside;
   }
   return inside;
@@ -81,16 +90,22 @@ export function minEdgePoint(lat, lng, geom) {
   const [px, py] = toM(lng, lat);
   const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
   let min = Infinity, bestX = lng, bestY = lat;
-  for (const poly of polys) for (const ring of poly) {
-    for (let i = 0; i < ring.length - 1; i++) {
-      const [ax, ay] = toM(ring[i][0], ring[i][1]);
-      const [bx, by] = toM(ring[i + 1][0], ring[i + 1][1]);
-      const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
-      let t = len2 ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0;
-      t = Math.max(0, Math.min(1, t));
-      const qx = ax + t * dx, qy = ay + t * dy;
-      const d = Math.hypot(px - qx, py - qy);
-      if (d < min) { min = d; bestX = qx / (cosLat * M); bestY = qy / M; }
+  if (!Array.isArray(polys)) return { distM: min, lat: bestY, lon: bestX };
+  for (const poly of polys) {
+    if (!Array.isArray(poly)) continue;
+    for (const ring of poly) {
+      if (!Array.isArray(ring)) continue;
+      for (let i = 0; i < ring.length - 1; i++) {
+        if (!Array.isArray(ring[i]) || !Array.isArray(ring[i + 1])) continue;
+        const [ax, ay] = toM(ring[i][0], ring[i][1]);
+        const [bx, by] = toM(ring[i + 1][0], ring[i + 1][1]);
+        const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+        let t = len2 ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0;
+        t = Math.max(0, Math.min(1, t));
+        const qx = ax + t * dx, qy = ay + t * dy;
+        const d = Math.hypot(px - qx, py - qy);
+        if (d < min) { min = d; bestX = qx / (cosLat * M); bestY = qy / M; }
+      }
     }
   }
   return { distM: min, lat: bestY, lon: bestX };

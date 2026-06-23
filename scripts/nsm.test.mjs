@@ -31,7 +31,8 @@ test("passes geometry through unchanged", () => {
 });
 
 test("keeps MultiPolygon", () => {
-  const mp = { features: [{ type: "Feature", geometry: { type: "MultiPolygon", coordinates: [] }, properties: { navn: "X" } }] };
+  const ring = [[13.88, 66.99], [13.89, 66.99], [13.89, 67.0], [13.88, 66.99]];
+  const mp = { features: [{ type: "Feature", geometry: { type: "MultiPolygon", coordinates: [[ring]] }, properties: { navn: "X" } }] };
   assert.equal(nsmZoneFeatures(mp, {}).length, 1);
 });
 
@@ -39,4 +40,17 @@ test("empty / garbage input yields empty output", () => {
   assert.deepEqual(nsmZoneFeatures({ features: [] }, {}), []);
   assert.deepEqual(nsmZoneFeatures(null, {}), []);
   assert.deepEqual(nsmZoneFeatures({}, {}), []);
+});
+
+test("drops polygons with no usable ring (empty/degenerate geometry)", () => {
+  // A Polygon whose `coordinates` is empty (or a MultiPolygon with no rings) has zero
+  // area — it conveys no zone, but if it reaches the spot-check it crashes point-in-polygon
+  // (ring[0] is undefined), killing EVERY "Can I fly here?" tap. Such features must be
+  // dropped at this boundary, not passed through.
+  const bad = { features: [
+    { type: "Feature", geometry: { type: "Polygon", coordinates: [] }, properties: { navn: "Empty poly" } },
+    { type: "Feature", geometry: { type: "MultiPolygon", coordinates: [] }, properties: { navn: "Empty multi" } },
+    { type: "Feature", geometry: { type: "Polygon", coordinates: [[]] }, properties: { navn: "Empty ring" } },
+  ]};
+  assert.deepEqual(nsmZoneFeatures(bad, {}), []);
 });

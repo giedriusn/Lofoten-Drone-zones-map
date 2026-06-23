@@ -11,11 +11,22 @@ const RULE =
   "register with NSM before you fly. The zone is defined by NSM; verify on NSM's map. " +
   "(FOR-2018-06-22-951 §6)";
 
+// A polygon geometry the spot-check can actually use: a non-empty outer ring. ArcGIS can
+// emit a "Polygon"/"MultiPolygon" with empty coordinates (null/degenerate geometry); such
+// a feature has zero area (you can't be inside it) but its empty outer ring makes
+// point-in-polygon read `ring[0]` of undefined and THROW — which would kill every
+// "Can I fly here?" tap. Drop these here so only real, testable zones reach the map.
+function hasPolygonArea(geom) {
+  const ringOK = ring => Array.isArray(ring) && ring.length > 0;
+  if (geom.type === "Polygon") return ringOK(geom.coordinates?.[0]);
+  if (geom.type === "MultiPolygon") return Array.isArray(geom.coordinates) && geom.coordinates.some(poly => ringOK(poly?.[0]));
+  return false;
+}
+
 export function nsmZoneFeatures(geojson, { nsm_url = "" } = {}) {
   const feats = geojson && Array.isArray(geojson.features) ? geojson.features : [];
   return feats
-    .filter(f => f && f.geometry &&
-      (f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon"))
+    .filter(f => f && f.geometry && hasPolygonArea(f.geometry))
     .map(f => {
       const a = f.properties || {};
       return {

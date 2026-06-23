@@ -22,6 +22,9 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    # Wall-clock backstop: a hung source fetch or a server with broken pagination must
+    # turn into a loud, fast job failure — never a 6-hour run (the Actions default).
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -35,9 +38,12 @@ jobs:
       - name: Rebuild restriction data from sources
         run: node scripts/build-data.mjs
 
-      # Gate: validate the freshly built data before committing. Same suite CI
-      # runs on push; if a fetch returned something malformed, this stops here.
-      - name: Validate rebuilt data
+      # Re-run the unit suite as a redundant guard (same one CI runs on push). NOTE:
+      # these are pure-module tests — they do NOT inspect the freshly built data/*.geojson.
+      # The real protection against bad data is the Rebuild step above: build-data.mjs
+      # throws + exits non-zero on an unreachable/malformed/empty/paged source, which fails
+      # the job before this step, so the Commit step never runs and no bad data is pushed.
+      - name: Re-run unit tests (redundant guard)
         run: node --test scripts/tiles.test.mjs scripts/geometry.test.mjs scripts/offline-assets.test.mjs scripts/season.test.mjs scripts/sensitive.test.mjs scripts/source-utils.test.mjs scripts/data-health.test.mjs scripts/nsm.test.mjs
 
       - name: Commit refreshed data
