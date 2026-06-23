@@ -153,7 +153,7 @@ async function buildRestrictions() {
         geometryType: "esriGeometryEnvelope",
         inSR: "4326", outSR: "4326",
         spatialRel: "esriSpatialRelIntersects",
-        outFields: "vernRestriksjonId,naturvernId,navn,verneform,faktaark,restriksjoner,restriksjonerBeskrivelse",
+        outFields: "vernRestriksjonId,navn,verneform,faktaark,restriksjoner,restriksjonerBeskrivelse",
         f: "geojson",
         maxAllowableOffset: "0.0001",
         geometryPrecision: "6",
@@ -261,7 +261,7 @@ import { nestingActive, windowsActive } from "./season.mjs";
   if (def.id === "restriction") return "Protected-area flight ban";
 ```
 
-- [ ] **Step 6: Date-aware styling** — in `styleFor`, replace the `const seabirdActive = …` line AND the `return { … }` object with this unified date-aware version (covers seabird AND restriction; preserves every other branch):
+- [ ] **Step 6: Date-aware styling** — in `styleFor`, replace the contiguous block **from the existing `const noFly = def.severity === "nofly";` line (app.js:289) through the closing `};` of the `return` (app.js:298)** with the block below. (The block re-states the `const noFly` line, so replace the existing one too — do NOT keep it, or you'll double-declare `noFly` and throw a SyntaxError.) This unified version covers seabird AND restriction and preserves every other branch:
 ```js
   const noFly = def.severity === "nofly";
   // Seabird + restriction layers are date-aware no-fly zones: bolder/more opaque while
