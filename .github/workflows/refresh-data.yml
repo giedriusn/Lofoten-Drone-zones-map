@@ -38,7 +38,7 @@ jobs:
       # Gate: validate the freshly built data before committing. Same suite CI
       # runs on push; if a fetch returned something malformed, this stops here.
       - name: Validate rebuilt data
-        run: node --test scripts/tiles.test.mjs scripts/geometry.test.mjs scripts/offline-assets.test.mjs scripts/season.test.mjs scripts/sensitive.test.mjs scripts/source-utils.test.mjs scripts/data-health.test.mjs
+        run: node --test scripts/tiles.test.mjs scripts/geometry.test.mjs scripts/offline-assets.test.mjs scripts/season.test.mjs scripts/sensitive.test.mjs scripts/source-utils.test.mjs scripts/data-health.test.mjs scripts/nsm.test.mjs
 
       - name: Commit refreshed data
         run: |
