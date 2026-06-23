@@ -23,6 +23,7 @@ const COLORS = {
   prison: "#d6447d",      // need permission → magenta (distinct from the orange airport/CTR family)
   restriction: "#ff2238", // protected-area flight ban = strict no-fly (red); dark solid edge
   controlled: "#8aa0b6",  // context (high) → grey
+  sensitive: "#7c8aa3", // military/sensitive site (advisory) → NSM grey-blue
 };
 
 // Layer definitions: how each is sourced from the data files, styled, and labelled.
@@ -41,6 +42,7 @@ const LAYER_DEFS = [
   { id: "seabird", name: "Seabird reserves (nesting ban)", color: COLORS.seabird, on: true, file: "nature", match: p => p.seabird, dashed: true, blocking: true, severity: "nofly", stroke: "#7a0010", weight: 2 },
   { id: "restriction", name: "Protected-area flight bans", color: COLORS.restriction, on: true, file: "restrictions", blocking: true, severity: "nofly", stroke: "#5a000c", weight: 2.4 },
   { id: "prison", name: "Prisons", color: COLORS.prison, on: true, file: "prisons", blocking: true, severity: "permission" },
+  { id: "sensitive", name: "Military / sensitive sites", color: COLORS.sensitive, on: true, file: "sensitive", blocking: false, severity: "permission" },
   { id: "helipad", name: "Hospital / HEMS helipads", color: COLORS.helipad, on: true, file: "helipads", blocking: false, severity: "caution" },
   { id: "airsport", name: "Air sports areas", color: COLORS.airsport, on: false, file: "airspace", match: p => p.category === "airsport", blocking: false, severity: "caution", stroke: "#7a5200", weight: 2 },
   { id: "populated", name: "Populated areas", color: COLORS.populated, on: false, file: "populated", blocking: false, severity: "caution" },
@@ -86,7 +88,7 @@ async function init() {
   L.control.scale({ imperial: false, position: "bottomleft" }).addTo(map);
 
   // Load all data files in parallel.
-  const files = ["airports", "airspace", "nature", "populated", "helipads", "prisons", "restrictions"];
+  const files = ["airports", "airspace", "nature", "populated", "helipads", "prisons", "restrictions", "sensitive"];
   const data = {};
   await Promise.all(files.map(async f => {
     try { data[f] = await (await fetch(`data/${f}.geojson`)).json(); }
@@ -173,6 +175,8 @@ function buildLayer(def, fc) {
       addHelipad(group, f, def);
     } else if (def.id === "prison") {
       addPrison(group, f, def);
+    } else if (def.id === "sensitive") {
+      addSensitive(group, f, def);
     } else if (f.geometry.type === "Point") {
       addPlacePoint(group, f, def);
     } else {
@@ -249,6 +253,16 @@ function addPrison(group, f, def) {
   group.addLayer(dot);
 }
 
+function addSensitive(group, f, def) {
+  const [lon, lat] = f.geometry.coordinates;
+  const p = f.properties;
+  const icon = L.divIcon({ className: "sensitive-icon", iconSize: [14, 14], iconAnchor: [7, 7] });
+  const m = L.marker([lat, lon], { icon });
+  m.bindPopup(popupHtml(f, def));
+  m.bindTooltip(esc(p.name), { direction: "top", offset: [0, -8] });
+  group.addLayer(m);
+}
+
 function addPlacePoint(group, f, def) {
   const [lon, lat] = f.geometry.coordinates;
   const p = f.properties;
@@ -277,6 +291,7 @@ function typeLabel(def, p) {
   if (def.file === "nature") return p.verneform || "Protected area";
   if (def.id === "prison") return "Prison";
   if (def.id === "restriction") return "Protected-area flight ban";
+  if (def.id === "sensitive") return "Military / sensitive site";
   return def.name;
 }
 
@@ -348,6 +363,7 @@ function popupHtml(f, def) {
   if (p.regulation) links.push(`<a href="${esc(safeUrl(p.regulation))}" target="_blank" rel="noopener">Regulation ↗</a>`);
   if (p.factsheet) links.push(`<a href="${esc(safeUrl(p.factsheet))}" target="_blank" rel="noopener">Factsheet ↗</a>`);
   if (p.source) links.push(`<a href="${esc(safeUrl(p.source))}" target="_blank" rel="noopener">AIP source ↗</a>`);
+  if (p.nsm_url) links.push(`<a href="${esc(safeUrl(p.nsm_url))}" target="_blank" rel="noopener">Check NSM map ↗</a>`);
   return `<h3>${esc(name)}</h3>
     <div class="pp-type">${esc(type)}</div>
     <div class="pp-rule">${esc(p.rule || "")}</div>

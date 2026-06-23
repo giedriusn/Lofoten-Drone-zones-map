@@ -366,6 +366,16 @@ ul.gloss .todo b { display: inline; margin: 0; color: var(--accent); }
   box-shadow: 0 1px 4px rgba(0,0,0,.5);
 }
 
+/* Military / sensitive-site marker — a diamond (rotated square), distinct from the
+   round dots; deliberately NO ring (these are NOT drawn NSM zones). */
+.sensitive-icon {
+  width: 14px; height: 14px;
+  background: var(--c-nsm);
+  border: 1.5px solid #fff;
+  transform: rotate(45deg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .5);
+}
+
 /* ---------- Loading ---------- */
 .loading {
   position: absolute; z-index: 1200; top: 50%; left: 50%;
