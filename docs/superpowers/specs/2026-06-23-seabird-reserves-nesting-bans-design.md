@@ -96,6 +96,9 @@ in each reserve's verneforskrift text on Lovdata), so exact dates stay advisory.
   the year-round reserve ban, the **seasonal access ban (ferdselsforbud) ~15 Apr–
   31 Jul during nesting**, that **exact dates vary — check the verneforskrift**,
   and that take-off/landing/flying-in are all covered with no altitude exemption.
+  The seabird branch must **fully own its text** — it returns its complete rule
+  and does not also append the generic `seasonal` clause, so the ferdselsforbud
+  sentence is never duplicated.
 
 ### 2. New map layer — `app.js`
 
@@ -128,9 +131,12 @@ in each reserve's verneforskrift text on Lovdata), so exact dates stay advisory.
     `🐦 Nesting ban — dormant now (applies 15 Apr–31 Jul)` (muted).
   - **Verdict** (`renderHit` / `renderResult`): a point inside a seabird reserve
     shows the same active/dormant line within its hit block.
-  - **Season banner:** a panel banner shown **only while the window is active**:
+  - **Season banner:** a dedicated, initially-hidden element in the control panel
+    body (placed beside the existing wildlife disclaimer, e.g. `id="seasonBanner"`)
+    shown **only while the window is active**:
     `🐦 Nesting season — seabird reserves are closed (ferdselsforbud) until 31 Jul.`
-    Rendered at init from `nestingActive`; hidden out of season.
+    Toggled at init from `nestingActive`; stays hidden out of season. (Panel-body
+    placement, not a map overlay, so it never covers the map or zones.)
 
 ### 4. Legend, glossary & copy — `index.html`, `style.css`
 
